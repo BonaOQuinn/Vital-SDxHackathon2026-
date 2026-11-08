@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { demoProfile, type PatientProfile } from "@/data";
 import { Screen } from "@/components/Screen";
-import { AlertIcon, ChevronLeftIcon } from "@/components/icons";
+import { AlertIcon, ChevronLeftIcon, MicIcon } from "@/components/icons";
 import { PrimaryButton, SecondaryButton } from "@/components/form";
 import { allergenEn, bloodTypeEn, frequencyEn, relationshipEn, severityEn } from "@/lib/labels-en";
 import { loadProfile, saveProfile } from "@/lib/profile-store";
@@ -90,49 +90,78 @@ export default function SharePage() {
 
   const missing = missingSections(profile, meta);
   const approvedCount = sections.filter((s) => approvals[s.id]).length;
+  const allOn = approvedCount === sections.length;
+
+  function setAll(on: boolean) {
+    const next: Approvals = Object.fromEntries(sections.map((s) => [s.id, on]));
+    setApprovals(next);
+    saveApprovals(next);
+  }
 
   return (
-    <Screen>
+    <Screen className="pb-0">
       <header className="flex h-11 items-center">
         <Link href="/" className="-ml-2 flex h-11 items-center gap-1 px-2 text-[17px] text-blue">
           <ChevronLeftIcon />
           Home
         </Link>
       </header>
-      <h1 className="mt-2 text-[30px] font-bold leading-tight">What you are sharing</h1>
-      <p className="mt-2 text-[17px] leading-snug text-ink-2">
-        Approve each section you want the clinician to see. Approved sections are translated into Spanish and checked against what you say.
+      <h1 className="mt-2 text-[30px] font-bold leading-tight tracking-[-0.01em]">What you share</h1>
+      <p className="mt-2 text-[16px] leading-snug text-ink-2">
+        Turn on each section the clinician may see. Shared sections are shown in Spanish and checked against what you say.
       </p>
 
-      <ul className="mt-6 space-y-3">
+      <div className="mt-5 rounded-card bg-surface p-4">
+        <div className="flex items-center justify-between">
+          <p className="text-[15px] font-semibold">
+            {approvedCount} of {sections.length} sections shared
+          </p>
+          <button onClick={() => setAll(!allOn)} className="rounded-full bg-blue-soft px-3 py-1.5 text-[14px] font-semibold text-blue active:opacity-80">
+            {allOn ? "Turn all off" : "Share all"}
+          </button>
+        </div>
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-line" aria-hidden="true">
+          <div className="h-full rounded-full bg-blue transition-[width] duration-300" style={{ width: `${(approvedCount / sections.length) * 100}%` }} />
+        </div>
+        {meta.unverified.length > 0 && (
+          <p className="mt-3 flex gap-2 text-[14px] leading-snug text-red">
+            <AlertIcon size={18} className="mt-0.5 shrink-0" />
+            {meta.unverified.length} sections came from your insurance upload and are unverified.
+          </p>
+        )}
+      </div>
+
+      <ul className="mt-4 space-y-3">
         {sections.map((s) => {
           const on = approvals[s.id] === true;
           const unverified = meta.unverified.includes(s.id);
           const isMissing = missing.includes(s.id);
           return (
-            <li key={s.id} className={`rounded-card border bg-surface p-4 ${on ? "border-blue" : "border-line"}`}>
-              <div className="flex items-start gap-3">
+            <li key={s.id} className={`relative rounded-card border-2 bg-surface p-4 transition-colors ${on ? "border-blue" : "border-transparent"}`}>
+              <label className="flex cursor-pointer items-start gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-[17px] font-semibold">{s.title}</p>
-                  <ul className="mt-1 text-[15px] leading-snug text-ink-2">
+                  <p className="flex flex-wrap items-center gap-x-2 text-[17px] font-semibold">
+                    {s.title}
+                    {unverified && <span className="rounded-md bg-red-soft px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-red">Unverified</span>}
+                  </p>
+                  <p className="text-[13px] text-ink-3">{s.titleEs}</p>
+                  <ul className="mt-1.5 text-[15px] leading-snug text-ink-2">
                     {summary(s.id, profile, meta).map((line, i) => (
                       <li key={i}>{line}</li>
                     ))}
                   </ul>
                 </div>
-                <label className="flex shrink-0 cursor-pointer items-center gap-2 text-[15px] font-semibold">
-                  <input type="checkbox" checked={on} onChange={() => toggle(s.id)} className="h-6 w-6 accent-[var(--color-blue)]" />
-                  {on ? "Approved" : "Approve"}
-                </label>
-              </div>
+                <input type="checkbox" role="switch" checked={on} onChange={() => toggle(s.id)} className="peer sr-only" aria-label={`Share ${s.title}`} />
+                <span
+                  aria-hidden="true"
+                  className="relative mt-0.5 h-[30px] w-[50px] shrink-0 rounded-full bg-line transition-colors peer-checked:bg-blue peer-focus-visible:outline peer-focus-visible:outline-3 peer-focus-visible:outline-blue after:absolute after:top-[3px] after:left-[3px] after:h-6 after:w-6 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-5"
+                />
+              </label>
               {unverified && (
-                <div className="mt-3 flex gap-2 text-[14px] leading-snug text-red">
-                  <AlertIcon size={18} className="mt-0.5 shrink-0" />
-                  <p>
-                    Unverified: imported from your insurance upload. Resubmit the document, <Link href="/welcome/profile" className="underline">enter it manually</Link>, or{" "}
-                    <button onClick={() => confirmSection(s.id)} className="font-semibold underline">confirm it is correct</button>.
-                  </p>
-                </div>
+                <p className="mt-3 text-[14px] leading-snug text-red">
+                  Imported from insurance. Resubmit the document, <Link href="/welcome/profile" className="underline">enter it manually</Link>, or{" "}
+                  <button onClick={() => confirmSection(s.id)} className="font-semibold underline">confirm it is correct</button>.
+                </p>
               )}
               {isMissing && !unverified && (
                 <p className="mt-3 flex gap-2 text-[14px] text-red">
@@ -145,12 +174,15 @@ export default function SharePage() {
         })}
       </ul>
 
-      <div className="sticky bottom-0 mt-6 space-y-2 bg-bg pt-3 pb-2">
-        <Link href="/conversation" className="block">
-          <PrimaryButton>Start translation ({approvedCount} of {sections.length} shared)</PrimaryButton>
+      <div className="sticky bottom-0 -mx-6 mt-4 border-t border-line bg-bg/95 px-6 pt-3 pb-[max(env(safe-area-inset-bottom),14px)] backdrop-blur">
+        <Link
+          href="/conversation"
+          className="flex h-14 w-full items-center justify-center gap-2 rounded-[14px] bg-blue text-[18px] font-semibold text-white active:bg-[#1849B0]"
+        >
+          <MicIcon size={22} /> Start translation
         </Link>
-        <p className="text-center text-[13px] leading-snug text-ink-3">
-          Vital translates and organizes information. It does not diagnose and does not replace emergency services or a professional interpreter.
+        <p className="mt-2 text-center text-[12px] leading-snug text-ink-3">
+          Vital translates and organizes. It does not diagnose or replace emergency services or a professional interpreter.
         </p>
       </div>
     </Screen>

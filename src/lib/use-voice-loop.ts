@@ -8,6 +8,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 export type MicState = "off" | "starting" | "listening" | "hearing" | "paused" | "denied" | "unavailable";
 
+/** Live detector numbers, shown with ?debug=1. */
+export interface MicStats {
+  rms: number;
+  floor: number;
+  threshold: number;
+}
+
 interface Options {
   /** Called with one finished utterance. Resolve when Vital is ready to listen again. */
   onUtterance: (audio: Blob) => Promise<void>;
@@ -15,7 +22,9 @@ interface Options {
   silenceMs?: number;
 }
 
-const MIN_SPEECH_MS = 350;
+const MIN_SPEECH_MS = 300;
+/** Frames (50 ms each) above the threshold before recording starts, so clicks do not count. */
+const ONSET_FRAMES = 2;
 const MAX_UTTERANCE_MS = 20_000;
 
 function pickMime(): string | undefined {
@@ -27,12 +36,17 @@ export function useVoiceLoop({ onUtterance, silenceMs = 900 }: Options) {
   const [state, setState] = useState<MicState>("off");
   const [level, setLevel] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<MicStats>({ rms: 0, floor: 0, threshold: 0 });
 
   const streamRef = useRef<MediaStream | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
   const timerRef = useRef<number | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const busyRef = useRef(false);
+  /** Set while the hold-to-talk button is pressed: record regardless of the detector. */
+  const manualRef = useRef(false);
+  const beginRef = useRef<(() => void) | null>(null);
+  const finishRef = useRef<((keep: boolean) => void) | null>(null);
   const handlerRef = useRef(onUtterance);
   useEffect(() => {
     handlerRef.current = onUtterance;
@@ -92,12 +106,18 @@ export function useVoiceLoop({ onUtterance, silenceMs = 900 }: Options) {
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 1024;
     ctx.createMediaStreamSource(stream).connect(analyser);
+    // Safari only processes nodes that reach the destination: route through a muted gain.
+    const mute = ctx.createGain();
+    mute.gain.value = 0;
+    analyser.connect(mute).connect(ctx.destination);
     const buf = new Float32Array(analyser.fftSize);
     const mime = pickMime();
 
-    // Calibrate against room noise for the first half second.
-    let noise = 0.01;
+    // Noise floor: average of the first half second, then a slow moving average of
+    // the frames where nobody is speaking. Speech must rise clearly above it.
+    let floor = 0;
     let calibrating = 10;
+    let above = 0;
     let speechStart = 0;
     let lastVoice = 0;
     let chunks: Blob[] = [];
@@ -125,32 +145,44 @@ export function useVoiceLoop({ onUtterance, silenceMs = 900 }: Options) {
       rec.stop();
     };
 
+    const begin = () => {
+      if (recorderRef.current) return;
+      const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+      rec.ondataavailable = (ev) => ev.data.size > 0 && chunks.push(ev.data);
+      rec.start(250);
+      recorderRef.current = rec;
+      speechStart = performance.now();
+      lastVoice = speechStart;
+      setState("hearing");
+    };
+    beginRef.current = begin;
+    finishRef.current = finish;
+
     timerRef.current = window.setInterval(() => {
       analyser.getFloatTimeDomainData(buf);
       let sum = 0;
       for (const v of buf) sum += v * v;
       const rms = Math.sqrt(sum / buf.length);
-      setLevel(Math.min(1, rms * 12));
+      // Perceptual scale for the meter: quiet speech (~0.01) already moves it.
+      setLevel(Math.min(1, Math.sqrt(rms) * 3));
 
       if (calibrating > 0) {
-        noise = Math.max(noise, rms);
+        floor += rms / 10;
         calibrating--;
         return;
       }
-      if (busyRef.current) return;
+      const threshold = Math.min(0.06, Math.max(0.008, floor * 3));
+      setStats({ rms, floor, threshold });
+      if (busyRef.current || manualRef.current) return;
 
-      const threshold = Math.max(0.015, noise * 2.5);
       const now = performance.now();
       const voiced = rms > threshold;
+      if (!recorderRef.current) floor = floor * 0.95 + Math.min(rms, threshold) * 0.05;
 
+      above = voiced ? above + 1 : 0;
       if (voiced) lastVoice = now;
-      if (!recorderRef.current && voiced) {
-        const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
-        rec.ondataavailable = (ev) => ev.data.size > 0 && chunks.push(ev.data);
-        rec.start(250);
-        recorderRef.current = rec;
-        speechStart = now;
-        setState("hearing");
+      if (!recorderRef.current && above >= ONSET_FRAMES) {
+        begin();
       } else if (recorderRef.current) {
         const long = now - speechStart > MAX_UTTERANCE_MS;
         if (now - lastVoice > silenceMs || long) finish(now - speechStart - (long ? 0 : silenceMs) > MIN_SPEECH_MS);
@@ -159,6 +191,18 @@ export function useVoiceLoop({ onUtterance, silenceMs = 900 }: Options) {
 
     setState("listening");
   }, [silenceMs, ensureCtx]);
+
+  /** Hold-to-talk: press starts recording, release sends it. Works when the room is too noisy for auto-detect. */
+  const holdStart = useCallback(() => {
+    if (!streamRef.current || busyRef.current) return;
+    manualRef.current = true;
+    beginRef.current?.();
+  }, []);
+  const holdEnd = useCallback(() => {
+    if (!manualRef.current) return;
+    manualRef.current = false;
+    finishRef.current?.(true);
+  }, []);
 
   /** Plays translated speech through the tap-unlocked audio context. Resolves when done. */
   const play = useCallback(
@@ -180,5 +224,5 @@ export function useVoiceLoop({ onUtterance, silenceMs = 900 }: Options) {
     [ensureCtx],
   );
 
-  return { state, level, error, start, stop, play };
+  return { state, level, error, stats, start, stop, play, holdStart, holdEnd };
 }

@@ -42,12 +42,15 @@ export default function ConversationPage() {
   const [failure, setFailure] = useState<string | null>(null);
   const [typed, setTyped] = useState("");
   const [typedLang, setTypedLang] = useState<Lang>("en");
+  const [showKeyboard, setShowKeyboard] = useState(false);
+  const [debug, setDebug] = useState(false);
   const sessionRef = useRef(session);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const p = loadProfile();
     if (p) setProfile(buildSharedProfile(p, loadMeta(), loadApprovals()));
+    setDebug(new URLSearchParams(window.location.search).has("debug"));
     // A uuid id lets /api/turn store each turn in Supabase (the session row is created on the first turn).
     setSession((s) => ({ ...s, sessionId: crypto.randomUUID(), startedAt: new Date().toISOString() }));
   }, []);
@@ -156,120 +159,200 @@ export default function ConversationPage() {
     router.push("/report");
   }
 
-  const open = useMemo(() => session.warnings.filter((w) => !w.resolution), [session.warnings]);
+  const open = useMemo(() => [...session.warnings].reverse().filter((w) => !w.resolution), [session.warnings]);
   const live = voice.state === "listening" || voice.state === "hearing" || voice.state === "paused";
-  const status = voice.state === "hearing" ? { en: "Hearing speech", es: "Escuchando voz" } : phaseLabel[phase];
+  const hearing = voice.state === "hearing";
+  const status = !live
+    ? { en: "Tap the mic to start", es: "Toque el micrófono para empezar" }
+    : hearing
+      ? { en: "Hearing you…", es: "Escuchando…" }
+      : phase === "idle"
+        ? { en: "Listening — speak English or Spanish", es: "Escuchando — hable en inglés o español" }
+        : phase === "speaking"
+          ? { en: `Speaking ${currentLang === "en" ? "Spanish" : "English"}`, es: `Hablando en ${currentLang === "en" ? "español" : "inglés"}` }
+          : phaseLabel[phase];
 
   return (
     <main className="mx-auto flex h-dvh w-full max-w-[480px] flex-col bg-call text-call-ink">
-      <header className="flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),12px)] pb-2">
-        <Link href="/share" className="-ml-2 flex h-11 items-center gap-1 px-2 text-[17px] text-call-muted">
+      <header className="flex items-center justify-between px-3 pt-[max(env(safe-area-inset-top),10px)] pb-2">
+        <Link href="/share" aria-label="Back to profile" className="flex h-11 w-11 items-center justify-center rounded-full text-call-muted active:bg-call-control">
           <ChevronLeftIcon />
-          Profile
         </Link>
-        <a href={`tel:${emergency.number}`} className="rounded-full bg-end px-4 py-2 text-[15px] font-semibold text-white">
+        <div className="flex flex-col items-center leading-tight">
+          <span className="text-[17px] font-bold tracking-tight">Vital</span>
+          <span className="text-[12px] font-medium text-call-muted">English ⇄ Español</span>
+        </div>
+        <a href={`tel:${emergency.number}`} className="flex h-9 items-center rounded-full bg-end px-3.5 text-[14px] font-bold text-white active:opacity-80">
           Call {emergency.number}
         </a>
       </header>
 
-      <div className="flex items-center gap-3 px-4 pb-3">
-        <span className={`h-2.5 w-2.5 rounded-full ${live ? "bg-live animate-pulse" : "bg-call-control"}`} />
-        <p className="text-[15px] text-call-muted" aria-live="polite">
-          {live ? `${status.en} · ${status.es}` : "Translation is off · Traducción apagada"}
-          {currentLang && live ? ` · ${langName(currentLang)} detected` : ""}
+      <div className="mx-3 mb-2 flex items-center gap-2.5 rounded-full bg-call-card px-3.5 py-2" aria-live="polite">
+        <span className={`h-2 w-2 shrink-0 rounded-full ${live ? (hearing ? "bg-live" : "bg-live/60") : "bg-call-control"} ${hearing ? "animate-pulse" : ""}`} />
+        <p className="min-w-0 flex-1 truncate text-[14px]">
+          <span className="font-semibold">{status.en}</span>
+          <span className="text-call-muted"> · {status.es}</span>
         </p>
-        {live && (
-          <span className="ml-auto h-1.5 w-16 overflow-hidden rounded-full bg-call-control" aria-hidden="true">
-            <span className="block h-full bg-live transition-[width] duration-75" style={{ width: `${Math.round(voice.level * 100)}%` }} />
-          </span>
-        )}
+        {phase !== "idle" && <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-call-muted border-t-transparent" aria-hidden="true" />}
       </div>
 
+      {debug && (
+        <p className="mx-3 mb-2 font-mono text-[11px] text-call-muted">
+          rms {voice.stats.rms.toFixed(4)} · floor {voice.stats.floor.toFixed(4)} · threshold {voice.stats.threshold.toFixed(4)} · mic {voice.state}
+        </p>
+      )}
+
       {open.length > 0 && (
-        <section className="mx-4 mb-3 max-h-[38dvh] space-y-2 overflow-y-auto" aria-live="assertive">
+        <section className="mx-3 mb-2 max-h-[34dvh] space-y-2 overflow-y-auto" aria-live="assertive">
           {open.map((w) => (
-            <div key={w.id} className="rounded-card border border-red bg-red-soft p-2.5 text-red">
-              <div className="flex gap-2">
+            <div key={w.id} className="rounded-2xl border border-red/40 bg-red-soft p-3 text-red shadow-[0_6px_20px_rgba(0,0,0,0.25)]">
+              <div className="flex gap-2.5">
                 <AlertIcon size={20} className="mt-0.5 shrink-0" />
-                <div className="text-[14px] leading-snug">
+                <div className="min-w-0 text-[14px] leading-snug">
                   <p className="font-semibold">{w.message.en}</p>
-                  <p className="mt-1">{w.message.es}</p>
+                  <p className="mt-1 opacity-90">{w.message.es}</p>
                 </div>
               </div>
-              <div className="mt-2 flex gap-2 text-[13px] font-semibold">
-                <button onClick={() => review(w.id, "confirmed")} className="rounded-full bg-red px-3 py-1.5 text-white">Reviewed · Revisado</button>
-                <button onClick={() => review(w.id, "corrected")} className="rounded-full border border-red px-3 py-1.5">Profile wrong · Corregir</button>
+              <div className="mt-2.5 flex gap-2 pl-[30px] text-[13px] font-semibold">
+                <button onClick={() => review(w.id, "confirmed")} className="rounded-full bg-red px-3 py-1.5 text-white active:opacity-80">Reviewed · Revisado</button>
+                <button onClick={() => review(w.id, "corrected")} className="rounded-full border border-red/50 px-3 py-1.5 active:bg-red/10">Profile wrong · Corregir</button>
               </div>
             </div>
           ))}
         </section>
       )}
 
-      <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 pb-4">
+      <div ref={scrollRef} className="flex flex-1 flex-col gap-3 overflow-y-auto px-3 pt-1 pb-4">
         {session.turns.length === 0 && !pending && (
-          <div className="mt-6 rounded-card bg-call-card p-4 text-[15px] leading-relaxed text-call-muted">
-            <p>Tap <b className="text-call-ink">Start translation</b>, set the phone down between you, and speak normally. Vital waits for each speaker to pause, then translates aloud.</p>
-            <p className="mt-2">Toque <b className="text-call-ink">Iniciar</b> y hable con normalidad. Vital espera a que termine cada persona y traduce en voz alta.</p>
-            {!profile && <p className="mt-3 text-red-soft">No approved profile yet. <Link href="/share" className="underline">Review and share it first.</Link></p>}
+          <div className="m-auto max-w-[320px] text-center">
+            <p className="text-[22px] font-bold leading-tight">Put the phone between you and talk.</p>
+            <p className="mt-1 text-[17px] text-call-muted">Ponga el teléfono entre ustedes y hablen.</p>
+            <p className="mt-4 text-[14px] leading-relaxed text-call-muted">
+              Vital waits for each person to pause, then says it in the other language. In a noisy room, hold the talk button while speaking.
+            </p>
+            {!profile && (
+              <Link href="/share" className="mt-4 inline-block rounded-full bg-call-card-2 px-4 py-2 text-[14px] font-semibold">
+                No profile shared yet — review it first
+              </Link>
+            )}
           </div>
         )}
-        {session.turns.map((t, i) => (
-          <article key={i} className={`rounded-card p-3 ${t.speaker === "patient" ? "bg-call-card" : "bg-call-card-2"}`}>
-            <p className="text-[12px] font-semibold uppercase tracking-wide text-call-muted">
-              {t.speaker === "patient" ? "Patient · Paciente" : "Clinician · Médico"} · {langName(t.source_lang)}
-            </p>
-            <p className="mt-1 text-[15px] text-call-muted">{t.original}</p>
-            <p className="mt-1.5 text-[18px] font-medium leading-snug">{t.translation}</p>
-          </article>
-        ))}
+        {session.turns.map((t, i) => {
+          const patient = t.speaker === "patient";
+          return (
+            <article key={i} className={`max-w-[88%] rounded-3xl px-4 py-3 ${patient ? "self-start rounded-bl-md bg-call-card" : "self-end rounded-br-md bg-call-card-2"}`}>
+              <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-call-muted">
+                {patient ? "Patient · Paciente" : "Clinician · Médico"} · {t.source_lang.toUpperCase()} → {t.source_lang === "en" ? "ES" : "EN"}
+              </p>
+              <p className="mt-1.5 text-[19px] font-semibold leading-snug">{t.translation}</p>
+              <p className="mt-1.5 text-[14px] leading-snug text-call-muted">“{t.original}”</p>
+            </article>
+          );
+        })}
         {pending && (
-          <article className="rounded-card bg-call-card p-3 opacity-80">
-            <p className="text-[12px] font-semibold uppercase tracking-wide text-call-muted">{pending.lang ? langName(pending.lang) : "Detecting"} · translating…</p>
-            <p className="mt-1 text-[15px] text-call-muted">{pending.original}</p>
+          <article className={`max-w-[88%] rounded-3xl px-4 py-3 opacity-80 ${pending.lang === "es" ? "self-end rounded-br-md bg-call-card-2" : "self-start rounded-bl-md bg-call-card"}`}>
+            <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-call-muted">{pending.lang ? langName(pending.lang) : "Detecting"} · translating…</p>
+            <p className="mt-1.5 text-[15px] text-call-muted">“{pending.original}”</p>
           </article>
         )}
       </div>
 
       {(voice.error || failure) && (
-        <p role="alert" className="mx-4 mb-2 rounded-card bg-red-soft p-3 text-[14px] text-red">
+        <p role="alert" className="mx-3 mb-2 rounded-2xl bg-red-soft p-3 text-[14px] leading-snug text-red">
           {voice.error ?? failure}
         </p>
       )}
 
-      <form onSubmit={sendTyped} className="flex gap-2 px-4 pb-2">
-        <select value={typedLang} onChange={(e) => setTypedLang(e.target.value as Lang)} aria-label="Typed message language" className="rounded-xl bg-call-control px-2 text-[15px]">
-          <option value="en">EN</option>
-          <option value="es">ES</option>
-        </select>
-        <input
-          value={typed}
-          onChange={(e) => setTyped(e.target.value)}
-          placeholder="Type instead · Escribir"
-          className="min-w-0 flex-1 rounded-xl bg-call-control px-3 py-2.5 text-[16px] text-call-ink placeholder:text-call-muted"
-        />
-        <button type="submit" disabled={!typed.trim() || phase !== "idle"} className="rounded-xl bg-call-card-2 px-3 text-[15px] font-semibold disabled:opacity-40">
-          Send
-        </button>
-      </form>
-
-      <footer className="flex gap-3 px-4 pt-2 pb-[max(env(safe-area-inset-bottom),16px)]">
-        {live ? (
-          <button onClick={voice.stop} className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-call-control text-[17px] font-semibold">
-            Pause
+      {showKeyboard && (
+        <form onSubmit={sendTyped} className="mx-3 mb-2 flex gap-2">
+          <div className="flex shrink-0 rounded-xl bg-call-control p-1 text-[13px] font-bold" role="radiogroup" aria-label="Typed message language">
+            {(["en", "es"] as Lang[]).map((l) => (
+              <button key={l} type="button" role="radio" aria-checked={typedLang === l} onClick={() => setTypedLang(l)} className={`rounded-lg px-2.5 ${typedLang === l ? "bg-call-card-2 text-call-ink" : "text-call-muted"}`}>
+                {l.toUpperCase()}
+              </button>
+            ))}
+          </div>
+          <input
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            placeholder="Type instead · Escribir"
+            autoFocus
+            className="min-w-0 flex-1 rounded-xl bg-call-control px-3 py-2.5 text-[16px] text-call-ink placeholder:text-call-muted"
+          />
+          <button type="submit" disabled={!typed.trim() || phase !== "idle"} className="rounded-xl bg-blue px-4 text-[15px] font-semibold text-white disabled:opacity-40">
+            Send
           </button>
-        ) : (
-          <button onClick={voice.start} disabled={voice.state === "starting"} className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-blue text-[17px] font-semibold text-white">
-            <MicIcon size={22} />
-            {session.turns.length ? "Resume" : "Start translation"}
+        </form>
+      )}
+
+      <footer className="px-3 pt-1 pb-[max(env(safe-area-inset-bottom),12px)]">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setShowKeyboard((v) => !v)}
+            aria-label="Type a message"
+            aria-pressed={showKeyboard}
+            className={`flex h-14 w-14 items-center justify-center rounded-full ${showKeyboard ? "bg-call-card-2" : "bg-call-control"} active:opacity-80`}
+          >
+            <KeyboardIcon />
+          </button>
+
+          <div className="flex flex-col items-center">
+            <button
+              onClick={live ? voice.stop : voice.start}
+              disabled={voice.state === "starting"}
+              aria-label={live ? "Pause translation" : "Start translation"}
+              className={`relative flex h-20 w-20 items-center justify-center rounded-full text-white transition-[box-shadow,background-color] duration-100 ${live ? "bg-live text-call" : "bg-blue"}`}
+              style={live ? { boxShadow: `0 0 0 ${6 + voice.level * 22}px rgba(61,220,132,${0.12 + voice.level * 0.2})` } : undefined}
+            >
+              {live ? <PauseIcon /> : <MicIcon size={32} />}
+            </button>
+          </div>
+
+          <button onClick={end} className="flex h-14 min-w-14 items-center justify-center rounded-full bg-end px-5 text-[16px] font-bold text-white active:opacity-80">
+            End
+          </button>
+        </div>
+
+        <p className="mt-2 text-center text-[13px] font-semibold text-call-muted">{live ? "Tap to pause · Pausar" : session.turns.length ? "Tap to resume · Reanudar" : "Start translation · Iniciar"}</p>
+
+        {live && (
+          <button
+            onPointerDown={(e) => {
+              e.currentTarget.setPointerCapture(e.pointerId);
+              voice.holdStart();
+            }}
+            onPointerUp={voice.holdEnd}
+            onPointerCancel={voice.holdEnd}
+            onContextMenu={(e) => e.preventDefault()}
+            disabled={phase !== "idle"}
+            className="mt-3 h-12 w-full select-none rounded-2xl bg-call-card text-[15px] font-semibold text-call-ink [-webkit-touch-callout:none] active:bg-call-card-2 disabled:opacity-40"
+          >
+            Hold to talk · Mantener para hablar
           </button>
         )}
-        <button onClick={end} className="h-14 rounded-2xl bg-end px-5 text-[17px] font-semibold text-white">
-          End
-        </button>
+
+        <p className="mt-3 text-center text-[11px] leading-snug text-call-muted">
+          Vital translates and organizes information. It does not diagnose and does not replace emergency services or a professional interpreter.
+        </p>
       </footer>
-      <p className="px-4 pb-3 text-center text-[11px] leading-snug text-call-muted">
-        Vital translates and organizes information. It does not diagnose and does not replace emergency services or a professional interpreter.
-      </p>
     </main>
+  );
+}
+
+function KeyboardIcon() {
+  return (
+    <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true">
+      <rect x="2.5" y="5.5" width="19" height="13" rx="2.5" />
+      <path d="M6.5 9.5h1M10.5 9.5h1M14.5 9.5h1M17.5 9.5h.5M6.5 12.5h1M10.5 12.5h1M14.5 12.5h1M8 15.5h8" />
+    </svg>
+  );
+}
+
+function PauseIcon() {
+  return (
+    <svg width={30} height={30} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <rect x="6.5" y="5" width="4" height="14" rx="1.2" />
+      <rect x="13.5" y="5" width="4" height="14" rx="1.2" />
+    </svg>
   );
 }
