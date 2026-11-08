@@ -38,6 +38,7 @@ Tables: `profiles`, `sessions` (transcript, injury record, summaries, `expires_a
 - **Allergy and profile alerts:** spoken in both languages and shown as a banner.
 - **Emergency button:** a visible "Call emergency services" button plus the local emergency number from a small country lookup table (Mexico, 911, for the demo).
 - **Unit conversion** (kg/lb, cm/ft-in) is plain code, never the LLM. Store metric and show both.
+- **Clinician-facing medical history is shown in Spanish with converted units.** When the profile is presented to the clinician (on the phone, the projector view, and the summary), render it in Spanish. Convert units in plain code to what local staff use (e.g. lb to kg, ft-in to cm, plus any other US units on the profile), and keep the original value next to it (e.g. `82 kg (180 lb)`). Translate free-text fields (history, conditions) with Claude, keeping drug names and numbers verbatim. Fixed fields (labels, blood type, allergy names) use a static Spanish dictionary so they never depend on the LLM. The patient's own view stays in English.
 - **Keep replies to one or two sentences** to limit latency (estimated 1.5 to 3 s per turn, unmeasured).
 - **Privacy:** fake data only. Sessions are stored until the summary link expires. Production needs encryption, consent and zero-retention agreements (ElevenLabs BAA and zero-retention are enterprise-only).
 - **Fallbacks:** typed-text input into the same pipeline, a push-to-talk toggle, pre-rendered audio for script lines, a backup video, and phone hotspots (venue is SDSU wifi).
