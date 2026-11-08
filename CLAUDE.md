@@ -51,15 +51,15 @@ Tables: `profiles`, `sessions` (transcript, injury record, summaries, `expires_a
 - Database choice, final role assignments, demo time limit and the closing pitch line are not decided.
 
 ## Team
-Bona, Chris, Mia, Luis. Chris has used ElevenLabs before but is away for the first half of the build window, so Bona owns the voice layer until he arrives. Others have little or no ElevenLabs experience. Work is largely agent-assisted, so humans must review, debug and own each piece for the demo.
+Bona, Chris, Mia, Luis. Chris has used ElevenLabs before but is away for the first half of the build window. Bona owns the voice layer and all of the backend work Chris was assigned. Others have little or no ElevenLabs experience. Work is largely agent-assisted, so humans must review, debug and own each piece for the demo.
 
 Roles:
-- **Bona, voice layer (takes over from Chris for the first half):** owns everything that touches ElevenLabs, including its server side: `/api/scribe-token`, the mic-streaming hook, text-to-speech playback, half-duplex mic gating, the push-to-talk fallback, and the 45-minute Agent test. Also owns `/api/turn` (Claude call and safe-mode prompt) because it is coupled to the voice loop. Chris has used ElevenLabs before, so ask him for tips when he arrives.
-- **Chris, backend and integration (joins for the second half):** owns the database and seed script, injury extraction, summaries, and the `/s/[token]` page, plus the typed-text fallback. Until he arrives, these are unowned and sit behind the voice loop in priority. Once the voice loop works, Chris pairs with Bona to understand how `/api/turn` fits the voice code.
+- **Bona, voice layer and backend:** owns everything that touches ElevenLabs, including its server side: `/api/scribe-token`, the mic-streaming hook, text-to-speech playback, half-duplex mic gating, the push-to-talk fallback, and the 45-minute Agent test. Also owns `/api/turn` (Claude call and safe-mode prompt), and takes over the work first given to Chris: the database and seed script, session sync for the projector view, injury extraction, summaries, the `/s/[token]` page, and the typed-text fallback. Priority order: voice loop and `/api/turn` first, then database and sync, then injury extraction and summaries, then the summary page, then the typed-text fallback. Chris has used ElevenLabs before, so ask him for tips when he arrives.
+- **Chris, unassigned until he arrives:** has no owned tasks. When he joins, give him the lowest-priority backend items first (typed-text fallback, summary page, seed script) so Bona can stay on the voice loop. Do not assign him until Bona confirms.
 - **Mia, frontend:** phone conversation screen, profile form with unit conversion, projector view `/view/[sessionId]`, summary screen, and the emergency button.
 - **Luis, pitch, demo and QA:** pitch script, judge Q&A, demo rehearsal, backup video, pre-rendered audio, failure-path testing, and asking organizers about rules, time limit and credits.
 
-Handoff contract between Bona (voice and `/api/turn`) and Chris (backend, from the second half): `/api/turn` takes a transcript plus session id and returns `{speaker, source_lang, translation, alerts[], flagged_terms[]}`. Agree on this when Chris arrives.
+Handoff contract between `/api/turn` and the rest of the backend (both owned by Bona unless work is passed to Chris): `/api/turn` takes a transcript plus session id and returns `{speaker, source_lang, translation, alerts[], flagged_terms[]}`. Agree on this with Mia, who builds against it.
 
 ## ElevenLabs credits
 - Bona has a coupon for 131,000 ElevenLabs credits, so the free plan limit (15 min) no longer constrains the build. Redeem it on Bona's account before the 45-minute Agent test, and create the API key from that account.
