@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { demoLocation } from "@/data";
 import { AlertIcon, ChevronLeftIcon, MicIcon } from "@/components/icons";
 import type { Lang, Note, TurnRequest, TurnResponse } from "@/lib/contract";
+import { emergencyNumber } from "@/lib/emergency";
 import { loadProfile } from "@/lib/profile-store";
 import { mergeAlerts } from "@/lib/safety-checks";
 import type { ReviewedWarning, SessionTurn } from "@/lib/report";
@@ -23,6 +24,7 @@ const phaseLabel: Record<Phase, { en: string; es: string }> = {
 };
 
 const langName = (l: Lang) => (l === "en" ? "English" : "Español");
+const emergency = emergencyNumber(demoLocation.country);
 
 export default function ConversationPage() {
   const router = useRouter();
@@ -165,8 +167,8 @@ export default function ConversationPage() {
           <ChevronLeftIcon />
           Profile
         </Link>
-        <a href={`tel:${demoLocation.emergencyNumber}`} className="rounded-full bg-end px-4 py-2 text-[15px] font-semibold text-white">
-          Call {demoLocation.emergencyNumber}
+        <a href={`tel:${emergency.number}`} className="rounded-full bg-end px-4 py-2 text-[15px] font-semibold text-white">
+          Call {emergency.number}
         </a>
       </header>
 
