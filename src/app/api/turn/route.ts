@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { z } from "zod";
 import { runTurn } from "@/lib/turn";
 import { env } from "@/lib/env";
@@ -5,6 +6,7 @@ import { checkTurn, mergeAlerts } from "@/lib/safety-checks";
 import { extractNotes, fallbackTurn, guessLang } from "@/lib/translate";
 import type { TurnRequest, TurnResponse } from "@/lib/contract";
 import { appendTurn, isSessionId } from "@/lib/db";
+import { updateInjuryRecord } from "@/lib/injury";
 
 export const maxDuration = 30;
 
@@ -57,6 +59,9 @@ export async function POST(req: Request) {
           flagged_terms: result.flagged_terms,
         });
         response.persisted = true;
+        // Non-blocking: update the injury record after the response has been sent.
+        const sid = input.sessionId;
+        after(() => updateInjuryRecord(sid).catch((e) => console.error("injury update failed", e)));
       } catch (e) {
         console.error("persist failed", e);
       }

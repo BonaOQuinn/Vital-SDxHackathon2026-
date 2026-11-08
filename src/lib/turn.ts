@@ -130,7 +130,7 @@ export async function runTurn(req: TurnRequest): Promise<Omit<TurnResponse, "ori
   if (!text || text.type !== "text") throw new Error(`Claude returned no JSON (stop_reason: ${msg.stop_reason})`);
   const out = turnSchema.parse(JSON.parse(text.text));
 
-  const alerts: Alert[] = out.alerts.map((a, i) => ({ id: `alert-${a.kind}-${i}`, ...a }));
+  const alerts: Alert[] = out.alerts.map((a) => ({ id: `alert-${a.kind}-${crypto.randomUUID().slice(0, 8)}`, ...a }));
   return {
     speaker: out.source_lang === "en" ? "patient" : "clinician",
     source_lang: out.source_lang,
