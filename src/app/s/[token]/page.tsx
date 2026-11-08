@@ -1,6 +1,8 @@
 import { Suspense, type ReactNode } from "react";
 import type { Metadata } from "next";
+import { demoLocation } from "@/data";
 import { AskVital } from "@/components/summary/AskVital";
+import { CareRoute } from "@/components/summary/CareRoute";
 import { ExpiryGate } from "@/components/summary/ExpiryGate";
 import { DoctorReport, EmsReport, NurseReport, PatientReport } from "@/components/summary/reports";
 import { ShareActions } from "@/components/summary/ShareActions";
@@ -110,11 +112,18 @@ async function SummaryContent({ token }: { token: string }) {
     return out;
   }
 
+  // Demo link only: a real link would need that session's profile and starting location.
+  // The demo story takes place in Ensenada, so it starts there. "Use my location" switches to the real one.
+  const careRoute =
+    token === "demo" ? (
+      <CareRoute session={token} startOrigin={{ lat: demoLocation.lat, lng: demoLocation.lng, label: `${demoLocation.city} (demo location)` }} />
+    ) : undefined;
+
   const allReports: AudienceReport[] = [
     { id: "doctor", label: "Doctor", defaultLang: bundle.staffLang, byLang: versions("doctor", doctor, (lang) => <DoctorReport {...common} lang={lang} />) },
     { id: "nurse", label: "Nurse", defaultLang: bundle.staffLang, byLang: versions("nurse", nurse, (lang) => <NurseReport {...common} lang={lang} pain={pain} />) },
     { id: "ems", label: "Paramedics", defaultLang: bundle.staffLang, byLang: versions("ems", ems, (lang) => <EmsReport {...common} lang={lang} pain={pain} />) },
-    { id: "patient", label: "Patient", defaultLang: bundle.patientLang, byLang: versions("patient", patient, () => <PatientReport generatedAt={generatedAt} />) },
+    { id: "patient", label: "Patient", defaultLang: bundle.patientLang, byLang: versions("patient", patient, () => <PatientReport generatedAt={generatedAt} careRoute={careRoute} />) },
   ];
   // Nurse and paramedic reports are pitch-only: real sessions only generate doctor and patient.
   const reports = allReports.filter((r) => Object.keys(r.byLang).length > 0);

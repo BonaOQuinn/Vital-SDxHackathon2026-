@@ -209,11 +209,12 @@ export function EmsReport({ profile, generatedAt, vitals, lang, pain }: Props) {
   );
 }
 
-export function PatientReport({ generatedAt }: { generatedAt: string }) {
+export function PatientReport({ generatedAt, careRoute }: { generatedAt: string; careRoute?: ReactNode }) {
   const r = patientReport;
   return (
     <article>
       <Title generatedAt={generatedAt} lang="en">Your visit summary</Title>
+      {careRoute}
       <Section title="What happened">
         <p className="rounded-card bg-surface px-4 py-3 text-[17px] leading-[1.5]">
           <Claim statement={r.whatHappened} />

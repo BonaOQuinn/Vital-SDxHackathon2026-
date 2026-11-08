@@ -4,6 +4,7 @@
 /** Exact international definitions. */
 export const KG_PER_LB = 0.45359237;
 export const CM_PER_IN = 2.54;
+export const KM_PER_MI = 1.609344;
 
 export function lbToKg(lb: number): number {
   return lb * KG_PER_LB;
@@ -41,6 +42,11 @@ export function formatLb(lb: number): string {
 /** "178 cm". Always with the unit. */
 export function formatCm(cm: number): string {
   return `${Math.round(cm)} cm`;
+}
+
+/** "1.6 km (1.0 mi)". Kilometers first, both with units. */
+export function formatDistance(km: number): string {
+  return `${km.toFixed(1)} km (${(km / KM_PER_MI).toFixed(1)} mi)`;
 }
 
 /** "5 ft 10 in". Always with the unit. */
