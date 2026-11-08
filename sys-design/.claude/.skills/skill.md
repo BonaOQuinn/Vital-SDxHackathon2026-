@@ -1,0 +1,3 @@
+---
+name: grill-me
+description: Interview the user relentlessly about the plan of the project until reaching a shared understanding, resolving each branch of the decision tree when it comes to the project's design and implementation. Use this skill to ensure that all aspects of the project are thoroughly considered and that the user's vision is fully understood. This skill will also help the agent contribute the following to the CLAUDE.md file. Project overview, tech stack, architecture, and implementation details.
