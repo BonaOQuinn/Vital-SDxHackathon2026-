@@ -49,4 +49,12 @@ Tables: `profiles`, `sessions` (transcript, injury record, summaries, `expires_a
 - Database choice, final role assignments, demo time limit and the closing pitch line are not decided.
 
 ## Team
-Bona, Chris, Mia, Luis. Chris has used ElevenLabs before and is the natural owner of the voice layer. Others have little or no ElevenLabs experience. Work is largely agent-assisted, so humans must review, debug and own each piece for the demo.
+Bona, Chris, Mia, Luis. Chris has used ElevenLabs before. Others have little or no ElevenLabs experience. Work is largely agent-assisted, so humans must review, debug and own each piece for the demo.
+
+Roles:
+- **Chris, voice layer:** owns everything that touches ElevenLabs, including its server side: `/api/scribe-token`, the mic-streaming hook, text-to-speech playback, half-duplex mic gating, the push-to-talk fallback, and the 45-minute Agent test. After the voice loop works (about 2:45), he moves to backend and integration work (summary link or typed-text fallback).
+- **Bona, backend:** owns `/api/turn` (Claude call and safe-mode prompt), the database and seed script, injury extraction, summaries, and the `/s/[token]` page. Pairs with Chris early to understand how `/api/turn` fits the voice code.
+- **Mia, frontend:** phone conversation screen, profile form with unit conversion, projector view `/view/[sessionId]`, summary screen, and the emergency button.
+- **Luis, pitch, demo and QA:** pitch script, judge Q&A, demo rehearsal, backup video, pre-rendered audio, failure-path testing, and asking organizers about rules, time limit and credits.
+
+Handoff contract between Chris and Bona: `/api/turn` takes a transcript plus session id and returns `{speaker, source_lang, translation, alerts[], flagged_terms[]}`. Agree on this in the first 15 minutes.
