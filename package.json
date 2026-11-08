@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "tsx --test src/**/*.test.ts",
+    "smoke": "tsx scripts/smoke-test.ts",
+    "sandbox": "tsx scripts/daytona-sandbox.ts",
+    "voices:design": "tsx scripts/design-voices.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
@@ -17,6 +21,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@daytona/sdk": "^0.231.0",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -24,6 +29,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.5",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }
