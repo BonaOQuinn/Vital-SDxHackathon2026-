@@ -8,6 +8,8 @@ import { SourcesProvider } from "@/components/summary/Sources";
 import { SummaryReports, type AudienceReport } from "@/components/summary/SummaryReports";
 import { TranscriptView } from "@/components/summary/TranscriptView";
 import { getSummaryBundle, type Audience, type SummaryBundle } from "@/lib/summary-source";
+import { lookupSummary } from "@/lib/summary-db";
+import { labelsEs } from "@/data";
 import type { LangCode } from "@/lib/languages";
 
 export const metadata: Metadata = {
@@ -55,8 +57,26 @@ function Report({ bundle, id, lang, disclaimer, children }: { bundle: SummaryBun
   );
 }
 
-function SummaryContent({ token }: { token: string }) {
-  const bundle = getSummaryBundle(token);
+async function SummaryContent({ token }: { token: string }) {
+  // "demo" keeps serving Luis's fixtures. Any other token is read from the database, which
+  // checks expires_at on the server and never sends data for an expired link.
+  let bundle: SummaryBundle | null = null;
+  if (token === "demo") {
+    bundle = getSummaryBundle(token);
+  } else {
+    const found = await lookupSummary(token).catch(() => ({ status: "missing" as const }));
+    if (found.status === "expired") {
+      return (
+        <main className="mx-auto flex min-h-dvh max-w-[480px] flex-col items-center justify-center px-6 text-center">
+          <p className="text-[22px] font-bold">This link has expired.</p>
+          <p className="mt-2 text-[17px] text-ink-2" lang="es">
+            {labelsEs.linkExpired}
+          </p>
+        </main>
+      );
+    }
+    if (found.status === "ok") bundle = found.bundle;
+  }
 
   if (!bundle) {
     return (
@@ -90,12 +110,14 @@ function SummaryContent({ token }: { token: string }) {
     return out;
   }
 
-  const reports: AudienceReport[] = [
+  const allReports: AudienceReport[] = [
     { id: "doctor", label: "Doctor", defaultLang: bundle.staffLang, byLang: versions("doctor", doctor, (lang) => <DoctorReport {...common} lang={lang} />) },
     { id: "nurse", label: "Nurse", defaultLang: bundle.staffLang, byLang: versions("nurse", nurse, (lang) => <NurseReport {...common} lang={lang} pain={pain} />) },
     { id: "ems", label: "Paramedics", defaultLang: bundle.staffLang, byLang: versions("ems", ems, (lang) => <EmsReport {...common} lang={lang} pain={pain} />) },
     { id: "patient", label: "Patient", defaultLang: bundle.patientLang, byLang: versions("patient", patient, () => <PatientReport generatedAt={generatedAt} />) },
   ];
+  // Nurse and paramedic reports are pitch-only: real sessions only generate doctor and patient.
+  const reports = allReports.filter((r) => Object.keys(r.byLang).length > 0);
 
   return (
     <ExpiryGate expiresAt={bundle.expiresAt}>

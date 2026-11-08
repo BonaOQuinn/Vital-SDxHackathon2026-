@@ -154,6 +154,18 @@ export async function generateSummaries(
   };
 }
 
+/** Stores the profile used for this session (once per profile id) and returns its row id. */
+async function saveProfile(profile: PatientProfile): Promise<string> {
+  const found = await db().from("profiles").select("id").eq("data->>id", profile.id).limit(1).maybeSingle();
+  if (found.data) {
+    await db().from("profiles").update({ data: profile }).eq("id", found.data.id);
+    return found.data.id as string;
+  }
+  const ins = await db().from("profiles").insert({ data: profile }).select("id").single();
+  if (ins.error) throw new Error(`saving profile failed: ${ins.error.message}`);
+  return ins.data.id as string;
+}
+
 export interface EndResult {
   token: string;
   expiresAt: string;
@@ -182,7 +194,8 @@ export async function endSession(
   const profile = opts.profile ?? demoProfile;
   const { doctor, patient } = await generateSummaries(sessionId, session.transcript, session.injury_record as InjuryRecord, profile);
 
-  const { error } = await db().from("sessions").update({ summary_es: doctor, summary_en: patient, status: "ended" }).eq("id", sessionId);
+  const profileRow = await saveProfile(profile);
+  const { error } = await db().from("sessions").update({ summary_es: doctor, summary_en: patient, status: "ended", profile_id: profileRow }).eq("id", sessionId);
   if (error) throw new Error(`saving summaries failed: ${error.message}`);
 
   if (existing.data) {
