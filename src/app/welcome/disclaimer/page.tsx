@@ -19,8 +19,7 @@ export default function DisclaimerPage() {
 
   function handleContinue() {
     acceptDisclaimer();
-    // Step 3 (profile setup) replaces this destination.
-    router.push("/");
+    router.push("/welcome/profile");
   }
 
   return (
