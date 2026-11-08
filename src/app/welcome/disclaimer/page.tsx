@@ -19,7 +19,7 @@ export default function DisclaimerPage() {
 
   function handleContinue() {
     acceptDisclaimer();
-    router.push("/welcome/profile");
+    router.push("/welcome/setup");
   }
 
   return (

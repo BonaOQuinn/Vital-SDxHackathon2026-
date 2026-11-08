@@ -73,6 +73,30 @@ export const emptyAbout: AboutDraft = {
   weightValue: "",
 };
 
+/** Turn a saved profile back into the editable "About you" fields. */
+export function aboutFromProfile(p: {
+  fullName: string;
+  dateOfBirth: string;
+  sex: SexCode;
+  bloodType: BloodType;
+  height: Height;
+  weight: Weight;
+}): AboutDraft {
+  const h = p.height.entered;
+  return {
+    fullName: p.fullName,
+    dateOfBirth: p.dateOfBirth,
+    sex: p.sex,
+    bloodType: p.bloodType,
+    heightUnit: h.unit,
+    heightCm: h.unit === "cm" ? String(h.value) : "",
+    heightFt: h.unit === "ft_in" ? String(h.ft) : "",
+    heightIn: h.unit === "ft_in" ? String(h.in) : "",
+    weightUnit: p.weight.entered.unit,
+    weightValue: String(p.weight.entered.value),
+  };
+}
+
 export function heightFromDraft(d: AboutDraft): Height | null {
   if (d.heightUnit === "cm") {
     const cm = num(d.heightCm);
