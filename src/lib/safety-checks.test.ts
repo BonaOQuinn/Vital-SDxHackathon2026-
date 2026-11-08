@@ -48,6 +48,12 @@ test("no profile, no checks", () => {
   assert.deepEqual(ids("I'm allergic to penicillin.", "patient", undefined), []);
 });
 
+test("merge drops Claude's duplicate of a code profile conflict", () => {
+  const code = checkTurn("I'm allergic to penicillin.", "patient", noAllergies);
+  const llm = [{ id: "alert-profile-0", kind: "profile" as const, trigger: "allergic to penicillin", message: { en: "x", es: "y" } }];
+  assert.deepEqual(mergeAlerts(code, llm).map((a) => a.id), ["conflict-allergy-penicillin"]);
+});
+
 test("merge keeps one allergy alert and dedupes profile alerts by id", () => {
   const code = checkTurn("Le voy a dar amoxicilina.", "clinician", demoProfile);
   const llm = [{ id: "alert-allergy-0", kind: "allergy" as const, trigger: "amoxicilina", message: { en: "x", es: "y" } }];

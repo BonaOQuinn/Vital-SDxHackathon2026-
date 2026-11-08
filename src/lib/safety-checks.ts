@@ -166,14 +166,23 @@ export function checkTurn(transcript: string, speaker: "patient" | "clinician", 
   return out;
 }
 
+/** Two profile alerts about the same thing: same id, or one trigger contains the other ("penicillin" / "allergic to penicillin"). */
+function sameProfileTopic(a: Alert, b: Alert): boolean {
+  if (a.id === b.id) return true;
+  const x = norm(a.trigger).trim();
+  const y = norm(b.trigger).trim();
+  return x.length > 2 && y.length > 2 && (x.includes(y) || y.includes(x));
+}
+
 /**
- * Merge alert lists, earlier lists first. A later allergy or anticoagulant
- * alert is dropped when one of the same kind is present; profile alerts merge by id.
+ * Merge alert lists, earlier lists first (code checks before Claude, earlier
+ * turns before later ones). A later allergy or anticoagulant alert is dropped
+ * when one of the same kind is present; profile alerts merge by topic.
  */
 export function mergeAlerts(...lists: Alert[][]): Alert[] {
   const out: Alert[] = [];
   for (const a of lists.flat()) {
-    const dup = a.kind === "profile" ? out.some((x) => x.id === a.id) : out.some((x) => x.kind === a.kind);
+    const dup = a.kind === "profile" ? out.some((x) => x.kind === "profile" && sameProfileTopic(x, a)) : out.some((x) => x.kind === a.kind);
     if (!dup) out.push(a);
   }
   return out;

@@ -50,6 +50,14 @@ async function main() {
   const missing = await turn("Do you take any medication?", { ...demoProfile, medications: [], allergies: [], approved: [], unverified: [] });
   ok("turn with nothing approved still translates", missing.status === 200 && Boolean(missing.body.translation));
 
+  // A uuid session is stored in Supabase when configured; without it the turn must still succeed.
+  const sid = crypto.randomUUID();
+  const stored = await post("/api/turn", { sessionId: sid, transcript: "My right wrist really hurts.", profile: shared });
+  const sb = await stored.json();
+  ok("uuid session turn", stored.status === 200 && Boolean(sb.translation), `persisted=${sb.persisted}`);
+  const end = await post(`/api/session/${sid}/end`, { profile: shared });
+  ok("end session", end.status === 200 || (!sb.persisted && end.status >= 400), `status ${end.status}${sb.persisted ? "" : " (no database configured)"}`);
+
   const bad = await post("/api/turn", { sessionId: "smoke", transcript: "" });
   ok("empty transcript rejected", bad.status === 400);
 

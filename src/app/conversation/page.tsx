@@ -7,6 +7,7 @@ import { demoLocation } from "@/data";
 import { AlertIcon, ChevronLeftIcon, MicIcon } from "@/components/icons";
 import type { Lang, Note, TurnRequest, TurnResponse } from "@/lib/contract";
 import { loadProfile } from "@/lib/profile-store";
+import { mergeAlerts } from "@/lib/safety-checks";
 import type { ReviewedWarning, SessionTurn } from "@/lib/report";
 import { loadApprovals, loadMeta, saveSession, type StoredSession } from "@/lib/session-store";
 import { buildSharedProfile, type SharedProfile } from "@/lib/sharing";
@@ -45,7 +46,8 @@ export default function ConversationPage() {
   useEffect(() => {
     const p = loadProfile();
     if (p) setProfile(buildSharedProfile(p, loadMeta(), loadApprovals()));
-    setSession((s) => ({ ...s, sessionId: `local-${crypto.randomUUID()}`, startedAt: new Date().toISOString() }));
+    // A uuid id lets /api/turn store each turn in Supabase (the session row is created on the first turn).
+    setSession((s) => ({ ...s, sessionId: crypto.randomUUID(), startedAt: new Date().toISOString() }));
   }, []);
 
   useEffect(() => {
@@ -84,8 +86,8 @@ export default function ConversationPage() {
         return;
       }
       const turn = (await res.json()) as TurnResponse;
-      // Same rule as mergeAlerts on the server: one allergy / blood-thinner alert per kind, profile conflicts by id.
-      const fresh = turn.alerts.filter((w) => !s.warnings.some((x) => (w.kind === "profile" ? x.id === w.id : x.kind === w.kind)));
+      // Same rule as the server: earlier warnings win, duplicates from later turns are dropped.
+      const fresh = mergeAlerts(s.warnings, turn.alerts).slice(s.warnings.length);
       const t: SessionTurn = { speaker: turn.speaker, source_lang: turn.source_lang, original, translation: turn.translation, at: new Date().toISOString() };
       setCurrentLang(turn.source_lang);
       setPending(null);

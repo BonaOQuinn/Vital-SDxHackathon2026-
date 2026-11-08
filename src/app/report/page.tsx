@@ -37,6 +37,9 @@ export default function ReportPage() {
   const [report, setReport] = useState<PatientEmergencyReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lang, setLang] = useState<L>("es");
+  // Bona's /api/session/<id>/end writes the stored doctor/patient summaries and returns a share link.
+  const [link, setLink] = useState<{ state: "pending" | "ready" | "unavailable"; path?: string }>({ state: "pending" });
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const profile = loadProfile();
@@ -53,6 +56,12 @@ export default function ReportPage() {
       notes: session.notes,
       warnings: session.warnings,
     };
+    if (session.turns.length === 0) setLink({ state: "unavailable" });
+    else
+      fetch(`/api/session/${session.sessionId}/end`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profile: body.profile }) })
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+        .then((r: { path: string }) => setLink({ state: "ready", path: r.path }))
+        .catch(() => setLink({ state: "unavailable" }));
     fetch("/api/report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then(setReport)
@@ -98,6 +107,22 @@ export default function ReportPage() {
           </button>
         </div>
       </header>
+
+      <div className="mt-4 rounded-card bg-blue-soft p-3 text-[14px] print:hidden">
+        {link.state === "pending" && <p className="text-ink-2">{t("Saving the shareable summary…", "Guardando el resumen para compartir…")}</p>}
+        {link.state === "unavailable" && <p className="text-ink-2">{t("Shareable link unavailable (session not saved). This report is still complete on this device.", "Enlace no disponible (sesión no guardada). Este reporte sigue completo en este dispositivo.")}</p>}
+        {link.state === "ready" && link.path && (
+          <div className="flex items-center gap-2">
+            <a href={link.path} className="min-w-0 flex-1 truncate font-semibold text-blue underline">{`${window.location.origin}${link.path}`}</a>
+            <button
+              onClick={() => navigator.clipboard?.writeText(`${window.location.origin}${link.path}`).then(() => setCopied(true)).catch(() => {})}
+              className="shrink-0 rounded-full bg-blue px-3 py-1 font-semibold text-white"
+            >
+              {copied ? t("Copied", "Copiado") : t("Copy link", "Copiar enlace")}
+            </button>
+          </div>
+        )}
+      </div>
 
       <h1 className="mt-4 text-[28px] font-bold leading-tight">{t("Patient Emergency Report", "Reporte de emergencia del paciente")}</h1>
       <p className="mt-1 text-[14px] text-ink-3">
