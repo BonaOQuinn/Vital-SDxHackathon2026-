@@ -168,6 +168,8 @@ export interface Turn {
   source_lang: Lang;
   original: string;
   translation: string;
+  /** Set when this turn answers a question from Vital's intake. */
+  asked?: string;
   alerts: Alert[];
   flagged_terms: FlaggedTerm[];
 }

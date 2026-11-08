@@ -3,6 +3,7 @@
 // Fields marked "voice" were added for the voice loop; they are optional, so
 // earlier callers keep working.
 import type { Alert, FlaggedTerm, Lang, PatientProfile, Speaker } from "@/data/types";
+import type { ReportCitation } from "@/lib/report-grounding";
 import type { SectionId } from "@/lib/sharing";
 
 export type { Alert, FlaggedTerm, Lang, Speaker };
@@ -34,6 +35,8 @@ export interface TurnResponse {
   translation: string; // 1-2 sentences, in the other language
   alerts: Alert[]; // bilingual messages, spoken and shown as a banner
   flagged_terms: FlaggedTerm[];
+  /** Items from the session's report that this utterance referred to. */
+  grounding?: ReportCitation[];
   /** The transcript as sent, echoed back so the UI can render it with the translation. */
   original: string;
   /** Turn index in the session. Absent when the turn was not stored (non-uuid session id or a database error). */

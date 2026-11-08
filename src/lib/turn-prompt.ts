@@ -1,8 +1,22 @@
 import type { PatientProfile } from "@/data/types";
 import { allergenEs } from "@/data/es-dictionary";
+import { reportForPrompt, type ReportItem } from "@/lib/report-grounding";
 
-/** Builds the system prompt: role, safe-mode rules, and the patient profile. */
-export function buildSystemPrompt(profile: PatientProfile): string {
+function reportSection(report: ReportItem[]): string {
+  if (report.length === 0) return "";
+  return `
+
+CASE REPORT (recorded so far in this session; reference only)
+${reportForPrompt(report)}
+
+GROUNDING RULES
+- Use the report only to understand what the speaker means: a short reply, a pronoun, or a misheard drug name or body part.
+- Never add a fact from the report that the speaker did not say. The translation contains only what this speaker said, even when the report knows more.
+- In report_refs, list the ids in square brackets of the report items this utterance directly talks about. Use an empty array if it talks about none. Never make up an id.`;
+}
+
+/** Builds the system prompt: role, safe-mode rules, the patient profile, and the session's report. */
+export function buildSystemPrompt(profile: PatientProfile, report: ReportItem[] = []): string {
   const allergies = profile.allergies.map((a) => ({
     allergen: a.allergen,
     allergen_es: allergenEs[a.allergen],
@@ -23,7 +37,7 @@ export function buildSystemPrompt(profile: PatientProfile): string {
 
   return `You are the live interpreter inside Vital, a hands-free medical emergency app. A traveler (patient, speaks English) and local medical staff (clinician, speaks Spanish) share one phone. You translate each utterance into the other language. You translate and organize. You never diagnose, advise, or answer for either person.
 
-For each user message (one transcript), return one JSON object matching the required schema: source_lang, translation, alerts, flagged_terms.
+For each user message (one transcript), return one JSON object matching the required schema: source_lang, translation, report_refs, alerts, flagged_terms.
 
 LANGUAGE
 - Detect the language of the transcript yourself: "en" or "es". English is the patient, Spanish is the clinician.
@@ -50,5 +64,5 @@ Name: ${profile.fullName}
 Sex: ${profile.sex}
 Allergies: ${JSON.stringify(allergies)}
 Medications: ${JSON.stringify(meds)}
-Conditions: ${JSON.stringify(conditions)}`;
+Conditions: ${JSON.stringify(conditions)}${reportSection(report)}`;
 }

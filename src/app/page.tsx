@@ -50,7 +50,11 @@ export default function Home() {
         </Link>
       )}
 
-      <section className="mt-6 overflow-hidden rounded-[22px] bg-call p-5 text-call-ink shadow-[0_16px_40px_rgba(15,27,51,0.25)]">
+      <Link href="/intake" className="mt-6 flex min-h-20 items-center justify-center rounded-[22px] bg-red text-[24px] font-bold text-white active:opacity-80">
+        Get help now
+      </Link>
+
+      <section className="mt-4 overflow-hidden rounded-[22px] bg-call p-5 text-call-ink shadow-[0_16px_40px_rgba(15,27,51,0.25)]">
         {profile ? (
           <>
             <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-call-muted">Emergency profile</p>

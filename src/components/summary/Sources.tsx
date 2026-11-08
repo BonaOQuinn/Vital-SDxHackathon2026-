@@ -58,6 +58,7 @@ export function SourcesProvider({
                 <p className="text-[14px] font-semibold text-ink-2">
                   From the conversation · {r.turn.speaker === "clinician" ? "Medical staff" : "Patient"} · {timeEn(r.at)}
                 </p>
+                {r.turn.asked ? <p className="mt-2 text-[14px] leading-[1.45] text-ink-2">Vital asked: {r.turn.asked}</p> : null}
                 <p className="mt-2 text-[17px] leading-[1.45]" lang={r.turn.source_lang}>
                   “{r.turn.original}”
                 </p>

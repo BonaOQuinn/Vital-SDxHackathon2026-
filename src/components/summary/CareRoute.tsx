@@ -3,6 +3,7 @@
 // "Where to go": the suggested level of care and the closest suitable places,
 // from the injury record, the profile and the patient's location.
 import { useEffect, useState } from "react";
+import type { PatientProfile } from "@/data";
 import { AlertIcon } from "@/components/icons";
 import type { CareLevel, CareRouteResponse, GeoPoint, SuggestedFacility } from "@/lib/care-routing";
 import { formatDistance } from "@/lib/units";
@@ -48,7 +49,7 @@ function FacilityRow({ facility, first }: { facility: SuggestedFacility; first: 
   );
 }
 
-export function CareRoute({ session, startOrigin }: { session: string; startOrigin: Origin }) {
+export function CareRoute({ session, startOrigin, profile }: { session: string; startOrigin: Origin; profile?: Pick<PatientProfile, "medications"> }) {
   const [origin, setOrigin] = useState(startOrigin);
   const [result, setResult] = useState<Result | null>(null);
   const [locating, setLocating] = useState(false);
@@ -59,7 +60,7 @@ export function CareRoute({ session, startOrigin }: { session: string; startOrig
     fetch("/api/care-route", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session, origin: { lat: origin.lat, lng: origin.lng } }),
+      body: JSON.stringify({ session, origin: { lat: origin.lat, lng: origin.lng }, profile: profile && { medications: profile.medications } }),
     })
       .then((res) => (res.ok ? (res.json() as Promise<CareRouteResponse>) : null))
       .catch(() => null)
@@ -69,7 +70,7 @@ export function CareRoute({ session, startOrigin }: { session: string; startOrig
     return () => {
       current = false;
     };
-  }, [session, origin]);
+  }, [session, origin, profile]);
 
   function locateMe() {
     setLocating(true);

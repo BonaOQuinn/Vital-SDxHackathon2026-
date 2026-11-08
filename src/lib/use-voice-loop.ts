@@ -75,7 +75,7 @@ export function useVoiceLoop({ onUtterance, silenceMs = 900 }: Options) {
   }, []);
 
   /** Must be called from a tap: iOS only allows mic and audio after a user gesture. */
-  const start = useCallback(async () => {
+  const start = useCallback(async (intro?: () => Promise<void>) => {
     setError(null);
     setState("starting");
 
@@ -189,6 +189,16 @@ export function useVoiceLoop({ onUtterance, silenceMs = 900 }: Options) {
       }
     }, 50);
 
+    // Anything spoken first is ignored by the mic, like every other Vital reply.
+    if (intro) {
+      busyRef.current = true;
+      setState("paused");
+      try {
+        await intro();
+      } finally {
+        busyRef.current = false;
+      }
+    }
     setState("listening");
   }, [silenceMs, ensureCtx]);
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { demoProfile, finalInjuryRecord } from "@/data";
+import { demoProfile, finalInjuryRecord, type Medication } from "@/data";
 import { assessCare, explainChoices, rankFacilities, type CareRouteResponse, type RecordedCase } from "@/lib/care-routing";
 import { getSession, isSessionId } from "@/lib/db";
 import { findFacilities } from "@/lib/facility-source";
@@ -10,6 +10,8 @@ const bodySchema = z.object({
   /** "demo", or a session uuid. */
   session: z.string().min(1),
   origin: z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }),
+  /** The patient's own medications. Only blood thinners are read. */
+  profile: z.object({ medications: z.array(z.custom<Medication>()) }).optional(),
 });
 
 async function loadRecord(session: string): Promise<RecordedCase | null> {
@@ -25,13 +27,12 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return Response.json({ error: "Invalid request", issues: parsed.error.issues }, { status: 400 });
   }
-  const { session, origin } = parsed.data;
+  const { session, origin, profile } = parsed.data;
   try {
     const record = await loadRecord(session);
     if (!record) return Response.json({ error: "Not found" }, { status: 404 });
 
-    // Sessions are not linked to a stored profile yet, so this matches the /api/turn default.
-    const assessment = assessCare(demoProfile, record);
+    const assessment = assessCare(session === "demo" ? demoProfile : (profile ?? { medications: [] }), record);
     const { facilities, dataSource, emergencyNumber } = await findFacilities(origin);
     const body: CareRouteResponse = {
       ...assessment,

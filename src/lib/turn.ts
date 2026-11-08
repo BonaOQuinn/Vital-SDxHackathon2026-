@@ -3,6 +3,7 @@ import { z } from "zod";
 import { env } from "@/lib/env";
 import { buildSystemPrompt } from "@/lib/turn-prompt";
 import type { Alert, TurnRequest, TurnResponse } from "@/lib/contract";
+import type { ReportItem } from "@/lib/report-grounding";
 import type { PatientProfile } from "@/data/types";
 import { demoProfile } from "@/data";
 
@@ -11,6 +12,7 @@ const localized = z.object({ en: z.string(), es: z.string() });
 const turnSchema = z.object({
   source_lang: z.enum(["en", "es"]),
   translation: z.string().min(1),
+  report_refs: z.array(z.string()),
   alerts: z.array(
     z.object({
       kind: z.enum(["allergy", "anticoagulant", "medication_interaction", "profile"]),
@@ -33,6 +35,7 @@ const TURN_JSON_SCHEMA = {
     properties: {
       source_lang: { type: "string", enum: ["en", "es"] },
       translation: { type: "string" },
+      report_refs: { type: "array", items: { type: "string" } },
       alerts: {
         type: "array",
         items: {
@@ -62,7 +65,7 @@ const TURN_JSON_SCHEMA = {
         },
       },
     },
-    required: ["source_lang", "translation", "alerts", "flagged_terms"],
+    required: ["source_lang", "translation", "report_refs", "alerts", "flagged_terms"],
   };
 
 function strictify<T>(node: T): T {
@@ -108,7 +111,7 @@ function allergySafetyNet(profile: PatientProfile, text: string, alerts: Alert[]
   return alerts;
 }
 
-export async function runTurn(req: TurnRequest): Promise<Omit<TurnResponse, "original" | "index" | "persisted">> {
+export async function runTurn(req: TurnRequest, report: ReportItem[] = []): Promise<Omit<TurnResponse, "original" | "index" | "persisted"> & { report_refs: string[] }> {
   const profile = req.profile ?? demoProfile;
   const history = (req.history ?? []).slice(-6).map((h) => `${h.speaker}: ${h.original}`).join("\n");
   const userText = history
@@ -118,7 +121,7 @@ export async function runTurn(req: TurnRequest): Promise<Omit<TurnResponse, "ori
   const msg = await anthropic().messages.create({
     model: env.claudeModel,
     max_tokens: 4000,
-    system: buildSystemPrompt(profile),
+    system: buildSystemPrompt(profile, report),
     output_config: {
       effort: "low", // lowest latency; thinking cannot be disabled on Opus 5.5
       format: { type: "json_schema", schema: strictify(TURN_JSON_SCHEMA) },
@@ -135,6 +138,7 @@ export async function runTurn(req: TurnRequest): Promise<Omit<TurnResponse, "ori
     speaker: out.source_lang === "en" ? "patient" : "clinician",
     source_lang: out.source_lang,
     translation: out.translation,
+    report_refs: out.report_refs,
     alerts: allergySafetyNet(profile, `${req.transcript} ${out.translation}`, alerts),
     flagged_terms: out.flagged_terms,
   };

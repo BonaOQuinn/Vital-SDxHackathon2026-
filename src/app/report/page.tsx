@@ -8,7 +8,7 @@ import { allergenEn, bloodTypeEn, frequencyEn, relationshipEn } from "@/lib/labe
 import { loadProfile } from "@/lib/profile-store";
 import type { PatientEmergencyReport, ReportRequest } from "@/lib/report";
 import { loadApprovals, loadMeta, loadSession } from "@/lib/session-store";
-import { buildSharedProfile, sections } from "@/lib/sharing";
+import { blankProfile, buildSharedProfile, sections } from "@/lib/sharing";
 import { formatCm, formatKg, formatLb } from "@/lib/units";
 
 type L = "en" | "es";
@@ -44,14 +44,14 @@ export default function ReportPage() {
   useEffect(() => {
     const profile = loadProfile();
     const session = loadSession();
-    if (!profile || !session) {
+    if (!session) {
       setError("No conversation found. Start a translation session first.");
       return;
     }
     const body: ReportRequest = {
       sessionId: session.sessionId,
       startedAt: session.startedAt,
-      profile: buildSharedProfile(profile, loadMeta(), loadApprovals()),
+      profile: profile ? buildSharedProfile(profile, loadMeta(), loadApprovals()) : blankProfile,
       turns: session.turns,
       notes: session.notes,
       warnings: session.warnings,

@@ -59,7 +59,7 @@ const STAFF_SENT_TO_HOSPITAL = /hospital|traslad|transfer/i;
 const fromTurn = (s: Source): SourceRef => ({ kind: "turn", turn: s.updatedTurn ?? s.turn });
 const statement = (en: string, es: string, sources: SourceRef[]): Statement => ({ text: { en, es }, sources });
 
-export function assessCare(profile: PatientProfile, record: RecordedCase): CareAssessment {
+export function assessCare(profile: Pick<PatientProfile, "medications">, record: RecordedCase): CareAssessment {
   const injuries = record.injuries ?? [];
   const vitals = record.vitals ?? [];
   const emergency: Statement[] = [];

@@ -5,7 +5,9 @@ import { env } from "@/lib/env";
 import { checkTurn, mergeAlerts } from "@/lib/safety-checks";
 import { extractNotes, fallbackTurn, guessLang } from "@/lib/translate";
 import type { TurnRequest, TurnResponse } from "@/lib/contract";
-import { appendTurn, isSessionId } from "@/lib/db";
+import type { InjuryRecord } from "@/data/types";
+import { appendTurn, getSession, isSessionId } from "@/lib/db";
+import { reportItems, resolveGrounding } from "@/lib/report-grounding";
 import { updateInjuryRecord } from "@/lib/injury";
 
 export const maxDuration = 30;
@@ -28,18 +30,23 @@ export async function POST(req: Request) {
   }
   try {
     const input = parsed.data as TurnRequest;
+    // Ground the translation in this session's report. A database problem must never block it.
+    const session = isSessionId(input.sessionId) ? await getSession(input.sessionId).catch(() => null) : null;
+    const report = reportItems(session?.injury_record as Partial<InjuryRecord> | undefined);
     // Translation and notes run in parallel; notes never block or fail the turn.
     // Without an Anthropic key, fall back to the scripted demo turns.
     const turnP = env.hasAnthropic
-      ? runTurn(input).then((t) => ({ ...t, engine: "claude" as const }))
-      : Promise.resolve(fallbackTurn(input));
+      ? runTurn(input, report).then((t) => ({ ...t, engine: "claude" as const }))
+      : Promise.resolve({ ...fallbackTurn(input), report_refs: [] as string[] });
     const speakerGuess = (input.detected_lang ?? guessLang(input.transcript)) === "en" ? "patient" : "clinician";
     const [result, notes] = await Promise.all([turnP, extractNotes(input, speakerGuess).catch(() => [])]);
 
     // Profile-consistency checks in plain code, merged ahead of Claude's alerts.
+    const { report_refs, ...translated } = result;
     const alerts = mergeAlerts(checkTurn(input.transcript, result.speaker, input.profile, input.unverified), result.alerts);
     const response: TurnResponse = {
-      ...result,
+      ...translated,
+      grounding: resolveGrounding(report_refs, report, session?.transcript ?? []),
       alerts,
       original: input.transcript,
       persisted: false,

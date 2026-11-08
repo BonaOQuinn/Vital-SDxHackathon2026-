@@ -54,6 +54,26 @@ export interface SharedProfile extends PatientProfile {
   insurance?: InsuranceInfo;
 }
 
+/** For someone with no profile, so a real user never inherits the demo patient's allergies and medications. */
+export const blankProfile: SharedProfile = {
+  id: "none",
+  fullName: "The patient",
+  dateOfBirth: "",
+  sex: "not_specified",
+  preferredLanguage: "en",
+  bloodType: "unknown",
+  weight: { kg: 0, entered: { value: 0, unit: "kg" } },
+  height: { cm: 0, entered: { unit: "cm", value: 0 } },
+  allergies: [],
+  medications: [],
+  conditions: [],
+  pastProcedures: [],
+  immunizations: [],
+  emergencyContacts: [],
+  approved: [],
+  unverified: [],
+};
+
 export function buildSharedProfile(profile: PatientProfile, meta: ProfileMeta, approvals: Approvals): SharedProfile {
   const ok = (id: SectionId) => approvals[id] === true;
   const approved = sections.map((s) => s.id).filter(ok);

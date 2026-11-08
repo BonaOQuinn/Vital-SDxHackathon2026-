@@ -2,6 +2,7 @@
 // what comes back. Profile facts come straight from the approved profile
 // (never the LLM); Claude only writes the narrative from the notes.
 import type { Alert, Note } from "@/lib/contract";
+import type { ReportCitation } from "@/lib/report-grounding";
 import type { SharedProfile } from "@/lib/sharing";
 
 export interface SessionTurn {
@@ -10,6 +11,8 @@ export interface SessionTurn {
   original: string;
   translation: string;
   at: string;
+  /** Report items this turn referred to. */
+  grounding?: ReportCitation[];
 }
 
 export interface ReviewedWarning extends Alert {

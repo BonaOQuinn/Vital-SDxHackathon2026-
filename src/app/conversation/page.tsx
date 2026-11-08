@@ -10,8 +10,9 @@ import { emergencyNumber } from "@/lib/emergency";
 import { loadProfile } from "@/lib/profile-store";
 import { mergeAlerts } from "@/lib/safety-checks";
 import type { ReviewedWarning, SessionTurn } from "@/lib/report";
-import { loadApprovals, loadMeta, saveSession, type StoredSession } from "@/lib/session-store";
-import { buildSharedProfile, type SharedProfile } from "@/lib/sharing";
+import { LiveReport } from "@/components/LiveReport";
+import { loadApprovals, loadMeta, loadSession, saveSession, type StoredSession } from "@/lib/session-store";
+import { blankProfile, buildSharedProfile, type SharedProfile } from "@/lib/sharing";
 import { useVoiceLoop } from "@/lib/use-voice-loop";
 
 type Phase = "idle" | "transcribing" | "translating" | "speaking";
@@ -52,12 +53,15 @@ export default function ConversationPage() {
     if (p) setProfile(buildSharedProfile(p, loadMeta(), loadApprovals()));
     setDebug(new URLSearchParams(window.location.search).has("debug"));
     // A uuid id lets /api/turn store each turn in Supabase (the session row is created on the first turn).
-    setSession((s) => ({ ...s, sessionId: crypto.randomUUID(), startedAt: new Date().toISOString() }));
+    // After the talk with Vital, continue that same session so the report carries over.
+    const prior = loadSession();
+    if (prior?.stage === "intake_done" || prior?.stage === "translating") setSession({ ...prior, stage: "translating" });
+    else setSession((s) => ({ ...s, sessionId: crypto.randomUUID(), startedAt: new Date().toISOString() }));
   }, []);
 
   useEffect(() => {
     sessionRef.current = session;
-    saveSession(session);
+    if (session.sessionId) saveSession(session);
   }, [session]);
   useEffect(() => {
     // Braces matter: Chrome's smooth scrollTo returns a Promise, which React would call as cleanup.
@@ -80,7 +84,7 @@ export default function ConversationPage() {
         sessionId: s.sessionId,
         transcript: original,
         detected_lang: detected ?? undefined,
-        profile: profile ?? undefined,
+        profile: profile ?? blankProfile,
         unverified: profile?.unverified,
         history: s.turns.slice(-6).map((t) => ({ speaker: t.speaker, original: t.original })),
       };
@@ -93,7 +97,7 @@ export default function ConversationPage() {
       const turn = (await res.json()) as TurnResponse;
       // Same rule as the server: earlier warnings win, duplicates from later turns are dropped.
       const fresh = mergeAlerts(s.warnings, turn.alerts).slice(s.warnings.length);
-      const t: SessionTurn = { speaker: turn.speaker, source_lang: turn.source_lang, original, translation: turn.translation, at: new Date().toISOString() };
+      const t: SessionTurn = { speaker: turn.speaker, source_lang: turn.source_lang, original, translation: turn.translation, at: new Date().toISOString(), grounding: turn.grounding };
       setCurrentLang(turn.source_lang);
       setPending(null);
       setFailure(null);
@@ -155,7 +159,7 @@ export default function ConversationPage() {
 
   function end() {
     voice.stop();
-    saveSession({ ...sessionRef.current, endedAt: new Date().toISOString() });
+    saveSession({ ...sessionRef.current, stage: "ended", endedAt: new Date().toISOString() });
     router.push("/report");
   }
 
@@ -246,6 +250,12 @@ export default function ConversationPage() {
               </p>
               <p className="mt-1.5 text-[19px] font-semibold leading-snug">{t.translation}</p>
               <p className="mt-1.5 text-[14px] leading-snug text-call-muted">“{t.original}”</p>
+              {t.grounding?.map((c) => (
+                <p key={c.id} className="mt-2 border-l-2 border-call-muted pl-2 text-[13px] leading-snug text-call-muted">
+                  <span className="font-semibold">Report · Reporte:</span> {t.source_lang === "en" ? c.text.es : c.text.en}
+                  {c.quote ? ` “${c.quote}”` : ""}
+                </p>
+              ))}
             </article>
           );
         })}
@@ -256,6 +266,8 @@ export default function ConversationPage() {
           </article>
         )}
       </div>
+
+      <LiveReport sessionId={session.sessionId} />
 
       {(voice.error || failure) && (
         <p role="alert" className="mx-3 mb-2 rounded-2xl bg-red-soft p-3 text-[14px] leading-snug text-red">
@@ -298,7 +310,7 @@ export default function ConversationPage() {
 
           <div className="flex flex-col items-center">
             <button
-              onClick={live ? voice.stop : voice.start}
+              onClick={() => (live ? voice.stop() : voice.start())}
               disabled={voice.state === "starting"}
               aria-label={live ? "Pause translation" : "Start translation"}
               className={`relative flex h-20 w-20 items-center justify-center rounded-full text-white transition-[box-shadow,background-color] duration-100 ${live ? "bg-live text-call" : "bg-blue"}`}

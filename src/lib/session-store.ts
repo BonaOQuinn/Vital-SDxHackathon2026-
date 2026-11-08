@@ -35,6 +35,8 @@ export interface StoredSession {
   sessionId: string;
   startedAt: string;
   endedAt?: string;
+  /** "intake_done" means the clinician conversation continues this same session. */
+  stage?: "intake" | "intake_done" | "translating" | "ended";
   turns: SessionTurn[];
   notes: Note[];
   warnings: ReviewedWarning[];
