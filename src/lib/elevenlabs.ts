@@ -70,9 +70,16 @@ function voiceFor(lang: Lang): string {
   return lang === "es" ? env.voiceEs : env.voiceEn;
 }
 
-/** Text-to-speech. Returns MP3 bytes. */
-export async function speak(text: string, lang: Lang): Promise<ArrayBuffer> {
-  const res = await fetch(`${API}/text-to-speech/${voiceFor(lang)}?output_format=mp3_44100_128`, {
+/** ElevenLabs voice ids are short alphanumeric strings. */
+export const isVoiceId = (v: unknown): v is string => typeof v === "string" && /^[A-Za-z0-9]{10,40}$/.test(v);
+
+/**
+ * Text-to-speech. Returns MP3 bytes. With `voiceId` (a session clone) the
+ * translation is spoken in the speaker's own voice; otherwise the stock voice
+ * for the language.
+ */
+export async function speak(text: string, lang: Lang, voiceId?: string): Promise<ArrayBuffer> {
+  const res = await fetch(`${API}/text-to-speech/${voiceId ?? voiceFor(lang)}?output_format=mp3_44100_128`, {
     method: "POST",
     headers: { "xi-api-key": env.elevenLabsKey, "Content-Type": "application/json", Accept: "audio/mpeg" },
     body: JSON.stringify({
@@ -84,4 +91,25 @@ export async function speak(text: string, lang: Lang): Promise<ArrayBuffer> {
   });
   if (!res.ok) throw new ElevenLabsError(`TTS failed: ${res.status} ${await res.text()}`, res.status);
   return res.arrayBuffer();
+}
+
+/**
+ * Instant Voice Cloning from the speaker's own recorded utterances. Only with
+ * the speaker's consent; the clone is deleted when the session ends.
+ */
+export async function cloneVoice(name: string, samples: Blob[]): Promise<string> {
+  const form = new FormData();
+  form.append("name", name);
+  form.append("description", "Temporary Vital session voice. Deleted when the session ends.");
+  form.append("remove_background_noise", "true");
+  samples.forEach((b, i) => form.append("files", b, `sample-${i}`));
+  const res = await fetch(`${API}/voices/add`, { method: "POST", headers: { "xi-api-key": env.elevenLabsKey }, body: form });
+  if (!res.ok) throw new ElevenLabsError(`Voice clone failed: ${res.status} ${await res.text()}`, res.status);
+  const data = (await res.json()) as { voice_id: string };
+  return data.voice_id;
+}
+
+export async function deleteVoice(voiceId: string): Promise<void> {
+  const res = await fetch(`${API}/voices/${voiceId}`, { method: "DELETE", headers: { "xi-api-key": env.elevenLabsKey } });
+  if (!res.ok && res.status !== 404) throw new ElevenLabsError(`Voice delete failed: ${res.status} ${await res.text()}`, res.status);
 }

@@ -44,3 +44,8 @@ export interface StoredSession {
 
 export const loadSession = (): StoredSession | null => read<StoredSession>(SESSION_KEY);
 export const saveSession = (s: StoredSession) => write(SESSION_KEY, s);
+
+const COUNTRY_KEY = "vital.country";
+/** Country picked in the emergency directory (ISO code). Drives every Call button. */
+export const loadCountry = (): string | null => read<string>(COUNTRY_KEY);
+export const saveCountry = (code: string) => write(COUNTRY_KEY, code);

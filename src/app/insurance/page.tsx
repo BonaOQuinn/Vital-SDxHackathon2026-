@@ -47,7 +47,7 @@ export default function InsurancePage() {
     saveProfile(insurerRecord);
     saveMeta(meta);
     saveApprovals({});
-    router.push("/share");
+    router.push("/intake");
   }
 
   return (
