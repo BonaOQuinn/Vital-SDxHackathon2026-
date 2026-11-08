@@ -77,6 +77,8 @@ export function fallbackTurn(req: TurnRequest): TurnResponse {
     translation: scripted ? scripted.translation : `[no translator configured] ${req.transcript}`,
     alerts: scripted ? scripted.alerts : [],
     flagged_terms: scripted ? scripted.flagged_terms : [],
+    original: req.transcript,
+    persisted: false,
     engine: "fallback",
   };
 }

@@ -34,6 +34,11 @@ export interface TurnResponse {
   translation: string; // 1-2 sentences, in the other language
   alerts: Alert[]; // bilingual messages, spoken and shown as a banner
   flagged_terms: FlaggedTerm[];
+  /** The transcript as sent, echoed back so the UI can render it with the translation. */
+  original: string;
+  /** Turn index in the session. Absent when the turn was not stored (non-uuid session id or a database error). */
+  index?: number;
+  persisted: boolean;
   /** voice: language of `translation`. */
   target_lang?: Lang;
   /** voice: notes for the Patient Emergency Report. */

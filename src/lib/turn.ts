@@ -100,7 +100,7 @@ function allergySafetyNet(profile: PatientProfile, text: string, alerts: Alert[]
   return alerts;
 }
 
-export async function runTurn(req: TurnRequest): Promise<TurnResponse> {
+export async function runTurn(req: TurnRequest): Promise<Omit<TurnResponse, "original" | "index" | "persisted">> {
   const profile = req.profile ?? demoProfile;
   const history = (req.history ?? []).slice(-6).map((h) => `${h.speaker}: ${h.original}`).join("\n");
   const userText = history

@@ -15,4 +15,6 @@ export const env = {
   // Defaults are ElevenLabs premade voices; run `npm run voices:design` to generate custom ones.
   get voiceEn() { return process.env.ELEVENLABS_VOICE_EN ?? "JBFqnCBsd6RMkjVDRZzb"; },
   get voiceEs() { return process.env.ELEVENLABS_VOICE_ES ?? "EXAVITQu4vr4xnSDxMaL"; },
+  get supabaseUrl() { return required("NEXT_PUBLIC_SUPABASE_URL"); },
+  get supabaseServiceKey() { return required("SUPABASE_SERVICE_ROLE_KEY"); },
 };
