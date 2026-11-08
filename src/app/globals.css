@@ -1,26 +1,60 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+  Vital design tokens. Use them as Tailwind classes, e.g. bg-surface, text-ink-2,
+  bg-blue, text-red, bg-call. Red is reserved for alerts (allergies, blood
+  thinners) and the emergency-call button.
+*/
+@theme {
+  /* App (light) */
+  --color-bg: #f5f6f8;
+  --color-surface: #ffffff;
+  --color-line: #e3e5ea;
+  --color-ink: #14161a;
+  --color-ink-2: #555b66;
+  --color-ink-3: #5f6673;
+
+  /* Brand and states */
+  --color-blue: #1f5bd8;
+  --color-blue-soft: #e8effc;
+  --color-red: #c8251b;
+  --color-red-soft: #fdecea;
+  --color-green: #127a3e;
+
+  /* Call screen (dark) */
+  --color-call: #0f1b33;
+  --color-call-card: #1a2948;
+  --color-call-card-2: #22365e;
+  --color-call-ink: #e3ecff;
+  --color-call-muted: #afc3e8;
+  --color-call-control: #2e3e60;
+  --color-end: #e5332a;
+  --color-live: #3ddc84;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --radius-card: 16px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
