@@ -12,6 +12,7 @@ import {
   ConditionsStep,
   ContactsStep,
   MedicationsStep,
+  aboutFromProfile,
   emptyAbout,
   heightFromDraft,
   weightFromDraft,
@@ -35,6 +36,22 @@ export default function ProfileSetupPage() {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [conditions, setConditions] = useState<Condition[]>([]);
   const [contacts, setContacts] = useState<EmergencyContact[]>([]);
+  // Set when the pages were pre-filled from insurance (demo: the sample profile).
+  // Fields the form doesn't edit are kept so saving doesn't drop them.
+  const [prefill, setPrefill] = useState<PatientProfile | null>(null);
+
+  // Read ?from=insurance after mount (Next.js prerenders this page).
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("from") !== "insurance") return;
+    /* eslint-disable react-hooks/set-state-in-effect -- the address is only readable after mount */
+    setPrefill(demoProfile);
+    setAbout(aboutFromProfile(demoProfile));
+    setAllergies(demoProfile.allergies);
+    setMedications(demoProfile.medications);
+    setConditions(demoProfile.conditions);
+    setContacts(demoProfile.emergencyContacts);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, []);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -50,7 +67,7 @@ export default function ProfileSetupPage() {
       return;
     }
     const profile: PatientProfile = {
-      id: `local-${crypto.randomUUID()}`,
+      id: prefill?.id ?? `local-${crypto.randomUUID()}`,
       fullName: about.fullName.trim(),
       dateOfBirth: about.dateOfBirth,
       sex: about.sex,
@@ -61,9 +78,10 @@ export default function ProfileSetupPage() {
       allergies,
       medications,
       conditions,
-      pastProcedures: [],
-      immunizations: [],
+      pastProcedures: prefill?.pastProcedures ?? [],
+      immunizations: prefill?.immunizations ?? [],
       emergencyContacts: finalContacts,
+      ...(prefill?.additionalNotes ? { additionalNotes: prefill.additionalNotes } : {}),
     };
     saveProfile(profile);
     router.push("/");
@@ -80,7 +98,7 @@ export default function ProfileSetupPage() {
     <Screen>
       <header className="flex h-11 items-center justify-between">
         {page === 0 ? (
-          <Link href="/welcome/disclaimer" className="-ml-2 flex h-11 items-center gap-1 px-2 text-[17px] text-blue">
+          <Link href="/welcome/setup" className="-ml-2 flex h-11 items-center gap-1 px-2 text-[17px] text-blue">
             <ChevronLeftIcon />
             Back
           </Link>
@@ -101,6 +119,13 @@ export default function ProfileSetupPage() {
 
       <h1 className="mt-6 text-[30px] font-bold leading-[1.12] tracking-[-0.01em]">{title}</h1>
       <p className="mt-2 mb-6 text-[17px] leading-[1.45] text-ink-2">{sub}</p>
+
+      {prefill ? (
+        <p className="mb-6 rounded-card bg-blue-soft p-4 text-[16px] leading-[1.45]" role="status">
+          <span className="font-semibold">Filled in from your insurance.</span> Check this page and fix anything that&apos;s wrong.
+          <span className="mt-1 block text-[14px] text-ink-2">Demo: sample profile data.</span>
+        </p>
+      ) : null}
 
       <div className="flex flex-1 flex-col">
         {page === 0 && <AboutYouStep value={about} onChange={setAbout} onNext={next} onUseDemo={chooseDemo} />}

@@ -44,9 +44,12 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-:focus-visible {
-  outline: 3px solid var(--color-blue);
-  outline-offset: 2px;
+/* In the base layer so a component can opt out (e.g. a dialog panel that takes focus). */
+@layer base {
+  :focus-visible {
+    outline: 3px solid var(--color-blue);
+    outline-offset: 2px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
