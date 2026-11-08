@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { runTurn } from "@/lib/turn";
-import type { TurnRequest } from "@/lib/contract";
+import type { TurnRequest, TurnResponse } from "@/lib/contract";
+import { appendTurn, isSessionId } from "@/lib/db";
 
 export const maxDuration = 30;
 
@@ -19,7 +20,27 @@ export async function POST(req: Request) {
     return Response.json({ error: "Invalid request", issues: parsed.error.issues }, { status: 400 });
   }
   try {
-    return Response.json(await runTurn(parsed.data as TurnRequest));
+    const input = parsed.data as TurnRequest;
+    const result = await runTurn(input);
+    const response: TurnResponse = { ...result, original: input.transcript, persisted: false };
+
+    // Store the turn, but never let a database problem block the live translation.
+    if (isSessionId(input.sessionId)) {
+      try {
+        response.index = await appendTurn(input.sessionId, {
+          speaker: result.speaker,
+          source_lang: result.source_lang,
+          original: input.transcript,
+          translation: result.translation,
+          alerts: result.alerts,
+          flagged_terms: result.flagged_terms,
+        });
+        response.persisted = true;
+      } catch (e) {
+        console.error("persist failed", e);
+      }
+    }
+    return Response.json(response);
   } catch (e) {
     console.error("turn failed", e);
     return Response.json({ error: "Turn failed" }, { status: 502 });
