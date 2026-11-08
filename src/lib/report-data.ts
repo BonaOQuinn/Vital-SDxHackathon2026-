@@ -14,7 +14,8 @@ export type SourceRef =
   | { kind: "profile"; section: "medications"; key: string }
   | { kind: "profile"; section: "conditions"; key: number }
   | { kind: "profile"; section: "immunizations"; key: number }
-  | { kind: "profile"; section: "contacts"; key: number };
+  | { kind: "profile"; section: "contacts"; key: number }
+  | { kind: "map"; name: string; listing: string; url: string };
 
 export interface Statement {
   /** Keyed by language code (es, en, fr, ...). */

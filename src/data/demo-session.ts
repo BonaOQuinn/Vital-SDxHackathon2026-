@@ -14,7 +14,7 @@
 import type { Alert, InjuryRecord, Injury, Intervention, OpenQuestion, Symptom, Turn, VitalSign } from "./types";
 
 export const demoSessionId = "demo-session-ensenada";
-export const demoLocation = { city: "Ensenada", region: "Baja California", country: "MX", emergencyNumber: "911" } as const;
+export const demoLocation = { city: "Ensenada", region: "Baja California", country: "MX", emergencyNumber: "911", lat: 31.8667, lng: -116.5964 } as const;
 
 const sessionStart = Date.parse("2026-11-08T15:10:00-08:00");
 /** Turns are spaced 20 seconds apart in the mock. */

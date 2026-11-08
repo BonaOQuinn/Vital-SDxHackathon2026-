@@ -19,7 +19,8 @@ import type { TranscriptEntry } from "./summary-source";
 
 export type ResolvedSource =
   | { kind: "turn"; turn: Turn; at: string }
-  | { kind: "profile"; section: string; value: string; detail?: string };
+  | { kind: "profile"; section: string; value: string; detail?: string }
+  | { kind: "map"; name: string; listing: string; url: string };
 
 const sectionName: Record<"es" | "en", Record<string, string>> = {
   en: {
@@ -49,6 +50,8 @@ export function resolveSource(
     const entry = ctx.transcript.find((e) => e.turn.index === ref.turn);
     return entry ? { kind: "turn", turn: entry.turn, at: entry.at } : null;
   }
+
+  if (ref.kind === "map") return ref;
 
   const p = ctx.profile;
   // Fixed labels exist in Spanish and English; other languages use English
