@@ -5,7 +5,8 @@ import { AskVital } from "@/components/summary/AskVital";
 import { CareRoute } from "@/components/summary/CareRoute";
 import { ExpiryGate } from "@/components/summary/ExpiryGate";
 import { DoctorReport, EmsReport, NurseReport, PatientReport } from "@/components/summary/reports";
-import { ShareActions } from "@/components/summary/ShareActions";
+import Link from "next/link";
+import { ShareLink } from "@/components/summary/ShareActions";
 import { SourcesProvider } from "@/components/summary/Sources";
 import { SummaryReports, type AudienceReport } from "@/components/summary/SummaryReports";
 import { TranscriptView } from "@/components/summary/TranscriptView";
@@ -51,9 +52,6 @@ function Report({ bundle, id, lang, disclaimer, children }: { bundle: SummaryBun
         </div>
       </details>
       <p className="mt-4 text-[14px] leading-[1.5] text-ink-2">{disclaimer}</p>
-      <div className="mt-6">
-        <ShareActions lang="en" />
-      </div>
       <AskVital lang={lang} />
     </SourcesProvider>
   );
@@ -130,10 +128,15 @@ async function SummaryContent({ token }: { token: string }) {
 
   return (
     <ExpiryGate expiresAt={bundle.expiresAt}>
-      <header className="sticky top-0 z-10 border-b border-line bg-bg/95 backdrop-blur pt-[env(safe-area-inset-top)]">
-        <div className="mx-auto flex h-12 max-w-[640px] items-center justify-between px-5">
-          <span className="text-[18px] font-bold">Vital</span>
-          <span className="text-[15px] text-ink-2">Clinical summary</span>
+      <header className="sticky top-0 z-10 border-b border-line bg-bg/95 backdrop-blur-sm pt-[env(safe-area-inset-top)]">
+        <div className="mx-auto grid h-12 max-w-[640px] grid-cols-[1fr_auto_1fr] items-center px-5">
+          <Link href="/" className="-ml-2 flex min-h-11 items-center px-2 text-[17px] text-blue">
+            Done
+          </Link>
+          <span className="text-[17px] font-semibold">Summary</span>
+          <span className="justify-self-end">
+            <ShareLink />
+          </span>
         </div>
       </header>
       <main className="mx-auto max-w-[640px] px-5 pt-4 pb-32">

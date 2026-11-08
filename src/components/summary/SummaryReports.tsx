@@ -71,8 +71,8 @@ export function SummaryReports({ reports }: { reports: AudienceReport[] }) {
 
   return (
     <>
-      <p className="mb-2 text-[15px] font-semibold text-ink-2">Who is this report for?</p>
-      <div role="tablist" aria-label="Who is this report for?" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {/* Reader picker: iOS segmented control, as in the mockup */}
+      <div role="tablist" aria-label="Who is this report for?" className="grid grid-cols-4 rounded-[10px] bg-[#E6E8EC] p-[3px]">
         {reports.map((r) => (
           <button
             key={r.id}
@@ -80,8 +80,8 @@ export function SummaryReports({ reports }: { reports: AudienceReport[] }) {
             role="tab"
             aria-selected={audience === r.id}
             onClick={() => chooseAudience(r.id)}
-            className={`min-h-11 rounded-full border px-3 text-[16px] font-semibold ${
-              audience === r.id ? "border-ink bg-ink text-white" : "border-line bg-surface text-ink"
+            className={`min-h-9 rounded-lg px-1 text-[14px] font-semibold ${
+              audience === r.id ? "bg-surface text-ink shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "text-ink-2"
             }`}
           >
             {r.label}
@@ -89,47 +89,40 @@ export function SummaryReports({ reports }: { reports: AudienceReport[] }) {
         ))}
       </div>
 
-      {available.length > 1 ? (
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <span className="text-[15px] font-semibold text-ink-2">Report language</span>
-          {available.length <= 3 ? (
-            // Few languages: a segmented control, each named in its own language.
-            <div role="radiogroup" aria-label="Report language" className="flex rounded-xl bg-[#E6E8EC] p-[3px]">
-              {available.map((l) => (
-                <button
-                  key={l}
-                  type="button"
-                  role="radio"
-                  aria-checked={lang === l}
-                  lang={l}
-                  onClick={() => chooseLang(l)}
-                  className={`min-h-10 rounded-[10px] px-4 text-[15px] font-semibold ${
-                    lang === l ? "bg-surface text-ink shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "text-ink-2"
-                  }`}
-                >
-                  {nativeName(l)}
-                </button>
-              ))}
-            </div>
-          ) : (
-            // Many languages (group conversations): a menu.
-            <select
-              aria-label="Report language"
-              value={lang}
-              onChange={(e) => chooseLang(e.target.value)}
-              className="h-11 rounded-xl border border-line bg-surface px-3 text-[16px] font-semibold"
-            >
-              {available.map((l) => (
-                <option key={l} value={l} lang={l}>
-                  {nativeName(l)}
-                </option>
-              ))}
-            </select>
-          )}
+      {available.length === 2 ? (
+        // Two languages: "Shown in Español · Show in English"
+        <div className="mt-3.5 flex items-center justify-between px-1 text-[15px]">
+          <span className="text-ink-2">
+            Shown in <span lang={lang}>{nativeName(lang)}</span>
+          </span>
+          {(() => {
+            const otherLang = available.find((l) => l !== lang) ?? available[0];
+            return (
+              <button type="button" onClick={() => chooseLang(otherLang)} className="min-h-11 font-semibold text-blue">
+                Show in <span lang={otherLang}>{nativeName(otherLang)}</span>
+              </button>
+            );
+          })()}
+        </div>
+      ) : available.length > 2 ? (
+        <div className="mt-3.5 flex items-center justify-between gap-3 px-1">
+          <span className="text-[15px] text-ink-2">Report language</span>
+          <select
+            aria-label="Report language"
+            value={lang}
+            onChange={(e) => chooseLang(e.target.value)}
+            className="h-11 rounded-xl border border-line bg-surface px-3 text-[16px] font-semibold"
+          >
+            {available.map((l) => (
+              <option key={l} value={l} lang={l}>
+                {nativeName(l)}
+              </option>
+            ))}
+          </select>
         </div>
       ) : null}
 
-      <div className="mt-6" lang={lang}>
+      <div className="mt-4" lang={lang}>
         {current.byLang[lang] ?? current.byLang[available[0]]}
       </div>
     </>

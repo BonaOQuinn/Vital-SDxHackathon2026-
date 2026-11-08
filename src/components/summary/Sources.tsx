@@ -99,7 +99,7 @@ export function SourceButton({ sources, label = "Source", explanation }: { sourc
     <button
       type="button"
       onClick={() => ctx.open(sources, explanation)}
-      className="ml-1.5 inline-flex h-7 translate-y-[-1px] items-center gap-1 rounded-full bg-[#E6E9EF] px-2.5 align-middle text-[13px] font-semibold text-ink-2 active:bg-blue-soft"
+      className="ml-1 inline-flex h-7 translate-y-[-1px] items-center gap-1 rounded-md px-1.5 align-middle text-[13px] font-semibold text-blue active:bg-blue-soft"
       aria-label={`${label}: show where this came from`}
     >
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">

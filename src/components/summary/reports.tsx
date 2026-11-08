@@ -15,7 +15,7 @@ import { Claim, SourceButton } from "./Sources";
 function Title({ children, generatedAt, lang }: { children: ReactNode; generatedAt: string; lang: LangCode }) {
   return (
     <>
-      <h1 className="text-[26px] font-bold leading-[1.15] tracking-[-0.01em]">{children}</h1>
+      <h1 className="text-[30px] font-bold leading-[1.15] tracking-[-0.01em]">{children}</h1>
       <p className="mt-1 text-[14px] text-ink-2">{dateTime(generatedAt, lang)}</p>
     </>
   );
@@ -44,7 +44,7 @@ function PatientStrip({ profile, at, lang }: { profile: PatientProfile; at: stri
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="mt-6">
-      <h2 className="mb-2 text-[17px] font-bold">{title}</h2>
+      <h2 className="mb-2 px-1 text-[13px] font-semibold uppercase tracking-[0.04em] text-ink-3">{title}</h2>
       {children}
     </section>
   );
@@ -64,10 +64,10 @@ function List({ items }: { items: Statement[] }) {
 
 function Alerts({ lang }: { lang: LangCode }) {
   return (
-    <ul className="mt-4 flex flex-col gap-2" aria-label={copyFor(lang).criticalAlerts}>
+    <ul className="mt-3 flex flex-col gap-2" aria-label={copyFor(lang).criticalAlerts}>
       {criticalAlerts.map((a, i) => (
-        <li key={i} className="flex gap-3 rounded-card bg-red-soft p-4 text-[17px] font-semibold leading-[1.45] text-red">
-          <AlertIcon size={22} className="mt-0.5 flex-none" />
+        <li key={i} className="flex gap-2.5 rounded-xl bg-red-soft px-3.5 py-3 text-[16px] font-semibold leading-[1.4] text-red">
+          <AlertIcon size={18} className="mt-[3px] flex-none" />
           <Claim statement={a} />
         </li>
       ))}
@@ -166,7 +166,7 @@ export function EmsReport({ profile, generatedAt, vitals, lang, pain }: Props) {
   const r = emsReport;
   const block = (letter: string, title: string, items: ReactNode) => (
     <div className="flex gap-3 border-t border-line py-3 first:border-t-0">
-      <span className="grid size-9 flex-none place-items-center rounded-xl bg-blue text-[18px] font-bold text-white" aria-hidden="true">
+      <span className="grid size-9 flex-none place-items-center rounded-xl bg-blue-soft text-[17px] font-bold text-blue" aria-hidden="true">
         {letter}
       </span>
       <div className="min-w-0 flex-1">

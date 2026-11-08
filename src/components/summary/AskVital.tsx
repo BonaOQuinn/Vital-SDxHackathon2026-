@@ -98,7 +98,7 @@ export function AskVital({ lang }: { lang: LangCode }) {
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="flex h-14 w-full items-center justify-center gap-2.5 rounded-[14px] bg-blue text-[18px] font-semibold text-white active:bg-[#1849B0]"
+            className="flex h-14 w-full items-center justify-center gap-2.5 rounded-[14px] border border-line bg-surface text-[17px] font-semibold text-blue active:bg-blue-soft"
           >
             <MicIcon size={22} />
             Ask Vital about this patient

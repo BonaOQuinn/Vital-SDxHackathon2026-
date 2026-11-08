@@ -55,3 +55,28 @@ export function ShareActions({ lang = "en" }: { lang?: Lang }) {
     </div>
   );
 }
+
+/** Plain "Share" text button for the top bar. */
+export function ShareLink() {
+  async function share() {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: copyText.en.title, url });
+      } catch {
+        // User closed the share sheet.
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(url);
+      } catch {
+        // Clipboard blocked: the address bar still has the link.
+      }
+    }
+  }
+  return (
+    <button type="button" onClick={share} className="-mr-2 min-h-11 px-2 text-[17px] text-blue">
+      Share
+    </button>
+  );
+}
