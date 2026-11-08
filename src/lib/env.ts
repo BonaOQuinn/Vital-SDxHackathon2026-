@@ -8,7 +8,7 @@ function required(name: string): string {
 export const env = {
   get anthropicKey() { return required("ANTHROPIC_API_KEY"); },
   get elevenLabsKey() { return required("ELEVENLABS_API_KEY"); },
-  get claudeModel() { return process.env.CLAUDE_MODEL ?? "claude-haiku-5-5"; },
+  get claudeModel() { return process.env.CLAUDE_MODEL ?? "claude-opus-5-5"; },
   get supabaseUrl() { return required("NEXT_PUBLIC_SUPABASE_URL"); },
   get supabaseServiceKey() { return required("SUPABASE_SERVICE_ROLE_KEY"); },
 };

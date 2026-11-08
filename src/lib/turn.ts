@@ -27,10 +27,8 @@ const turnSchema = z.object({
   ),
 });
 
-const TOOL: Anthropic.Tool = {
-  name: "record_turn",
-  description: "Record the translation and any alerts for this transcript.",
-  input_schema: {
+// JSON schema for structured output (Opus 5.5 does not allow forced tool use).
+const TURN_JSON_SCHEMA = {
     type: "object",
     properties: {
       source_lang: { type: "string", enum: ["en", "es"] },
@@ -65,8 +63,18 @@ const TOOL: Anthropic.Tool = {
       },
     },
     required: ["source_lang", "translation", "alerts", "flagged_terms"],
-  },
-};
+  };
+
+function strictify<T>(node: T): T {
+  if (Array.isArray(node)) return node.map(strictify) as T;
+  if (node && typeof node === "object") {
+    const o: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(node)) o[k] = strictify(v);
+    if (o.type === "object") o.additionalProperties = false;
+    return o as T;
+  }
+  return node;
+}
 
 let client: Anthropic | undefined;
 const anthropic = () => (client ??= new Anthropic({ apiKey: env.anthropicKey }));
@@ -109,16 +117,18 @@ export async function runTurn(req: TurnRequest): Promise<Omit<TurnResponse, "ori
 
   const msg = await anthropic().messages.create({
     model: env.claudeModel,
-    max_tokens: 800,
+    max_tokens: 4000,
     system: buildSystemPrompt(profile),
-    tools: [TOOL],
-    tool_choice: { type: "tool", name: "record_turn" },
+    output_config: {
+      effort: "low", // lowest latency; thinking cannot be disabled on Opus 5.5
+      format: { type: "json_schema", schema: strictify(TURN_JSON_SCHEMA) },
+    },
     messages: [{ role: "user", content: userText }],
   });
 
-  const block = msg.content.find((b) => b.type === "tool_use");
-  if (!block || block.type !== "tool_use") throw new Error("Claude returned no tool call");
-  const out = turnSchema.parse(block.input);
+  const text = msg.content.find((b) => b.type === "text");
+  if (!text || text.type !== "text") throw new Error(`Claude returned no JSON (stop_reason: ${msg.stop_reason})`);
+  const out = turnSchema.parse(JSON.parse(text.text));
 
   const alerts: Alert[] = out.alerts.map((a, i) => ({ id: `alert-${a.kind}-${i}`, ...a }));
   return {
