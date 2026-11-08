@@ -51,10 +51,10 @@ Tables: `profiles`, `sessions` (transcript, injury record, summaries, `expires_a
 - Database choice, an owner for pitch and QA, demo time limit and the closing pitch line are not decided.
 
 ## Team
-Bona, Chris, Mia, Luis. Chris has used ElevenLabs before and owns the voice agent. Others have little or no ElevenLabs experience. Work is largely agent-assisted, so humans must review, debug and own each piece for the demo. Chris is away for the first half of the build window, so until he arrives Bona tests the backend with typed text and Mia builds against mock data.
+Bona, Chris, Mia, Luis. Chris has used ElevenLabs before and owns the voice agent. Others have little or no ElevenLabs experience. Work is largely agent-assisted, so humans must review, debug and own each piece for the demo. Chris is here for the whole build window. Mia builds against the `/api/turn` contract and mock data until the backend is live.
 
 ### Chris, ElevenLabs voice agent
-Owns everything that touches ElevenLabs, including its server side.
+Owns everything that touches ElevenLabs, including its server side. After the voice loop works (about 2:45), he moves to backend and integration work: first the summary link and the typed-text fallback, then whatever Bona hands over. Pairs with Bona early to understand how `/api/turn` fits the voice code.
 - [ ] Run the 45-minute test first: alternate English and Spanish through Scribe v2 Realtime and (optionally) one ElevenLabs Agent in the dashboard. Check that language switching works, the right voice is picked per language, and drug names survive. Report the result before building further.
 - [ ] `GET /api/scribe-token`: server route that returns a single-use Scribe token (expires in 15 minutes) so the API key stays on the server.
 - [ ] Mic-streaming hook: stream browser mic audio to Scribe, emit committed transcripts. Works on iPhone Safari (HTTPS and a "Start" tap).
@@ -77,7 +77,7 @@ Owns the server, data and Claude integration. Does not own anything that talks t
 - [ ] Summary link: `/s/[token]` public, read-only page that checks `expires_at` on read and shows an expired state.
 - [ ] Unit conversion in plain code (never the LLM): kg first with the original in parentheses, cm first, °C, round-trip tests for lb/kg and ft-in/cm.
 - [ ] Emergency number lookup table (Mexico, 911 for the demo).
-- [ ] Publish the `/api/turn` contract to Chris and Mia in the first 15 minutes; test it with typed text before Chris arrives.
+- [ ] Publish the `/api/turn` contract to Chris and Mia in the first 15 minutes; test it with typed text so the backend can be checked before the voice loop is ready.
 
 ### Mia, frontend
 Owns every screen. Builds against the `/api/turn` contract and mock data until the backend is live.
