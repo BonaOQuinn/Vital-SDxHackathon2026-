@@ -46,17 +46,23 @@ Tables: `profiles`, `sessions` (transcript, injury record, summaries, `expires_a
 
 ## Open items
 - No Claude API key yet (alternative: an ElevenLabs Agent with its hosted LLM).
-- ElevenLabs credits unknown (free plan is 15 min). Ask staff at kickoff. Daytona has $100 in credits.
-- The 45-minute ElevenLabs Agent test has not been run (owner: Chris). Scribe's handling of alternating English and Spanish is not verified.
+- ElevenLabs credits: Bona has a coupon worth 131,000 credits (see ElevenLabs credits below). Daytona has $100 in credits.
+- The 45-minute ElevenLabs Agent test has not been run (owner: Bona). Scribe's handling of alternating English and Spanish is not verified.
 - Database choice, final role assignments, demo time limit and the closing pitch line are not decided.
 
 ## Team
-Bona, Chris, Mia, Luis. Chris has used ElevenLabs before. Others have little or no ElevenLabs experience. Work is largely agent-assisted, so humans must review, debug and own each piece for the demo.
+Bona, Chris, Mia, Luis. Chris has used ElevenLabs before but is away for the first half of the build window, so Bona owns the voice layer until he arrives. Others have little or no ElevenLabs experience. Work is largely agent-assisted, so humans must review, debug and own each piece for the demo.
 
 Roles:
-- **Chris, voice layer:** owns everything that touches ElevenLabs, including its server side: `/api/scribe-token`, the mic-streaming hook, text-to-speech playback, half-duplex mic gating, the push-to-talk fallback, and the 45-minute Agent test. After the voice loop works (about 2:45), he moves to backend and integration work (summary link or typed-text fallback).
-- **Bona, backend:** owns `/api/turn` (Claude call and safe-mode prompt), the database and seed script, injury extraction, summaries, and the `/s/[token]` page. Pairs with Chris early to understand how `/api/turn` fits the voice code.
+- **Bona, voice layer (takes over from Chris for the first half):** owns everything that touches ElevenLabs, including its server side: `/api/scribe-token`, the mic-streaming hook, text-to-speech playback, half-duplex mic gating, the push-to-talk fallback, and the 45-minute Agent test. Also owns `/api/turn` (Claude call and safe-mode prompt) because it is coupled to the voice loop. Chris has used ElevenLabs before, so ask him for tips when he arrives.
+- **Chris, backend and integration (joins for the second half):** owns the database and seed script, injury extraction, summaries, and the `/s/[token]` page, plus the typed-text fallback. Until he arrives, these are unowned and sit behind the voice loop in priority. Once the voice loop works, Chris pairs with Bona to understand how `/api/turn` fits the voice code.
 - **Mia, frontend:** phone conversation screen, profile form with unit conversion, projector view `/view/[sessionId]`, summary screen, and the emergency button.
 - **Luis, pitch, demo and QA:** pitch script, judge Q&A, demo rehearsal, backup video, pre-rendered audio, failure-path testing, and asking organizers about rules, time limit and credits.
 
-Handoff contract between Chris and Bona: `/api/turn` takes a transcript plus session id and returns `{speaker, source_lang, translation, alerts[], flagged_terms[]}`. Agree on this in the first 15 minutes.
+Handoff contract between Bona (voice and `/api/turn`) and Chris (backend, from the second half): `/api/turn` takes a transcript plus session id and returns `{speaker, source_lang, translation, alerts[], flagged_terms[]}`. Agree on this when Chris arrives.
+
+## ElevenLabs credits
+- Bona has a coupon for 131,000 ElevenLabs credits, so the free plan limit (15 min) no longer constrains the build. Redeem it on Bona's account before the 45-minute Agent test, and create the API key from that account.
+- Use the one account for everything so usage and the coupon balance stay in one place. The key stays on the server (`/api/scribe-token` hands the browser a single-use token). Never commit the key or the coupon code.
+- Credits are not minutes. Check Settings > Usage on the dashboard after the first test to see the real burn rate for Scribe, Flash v2.5 and any Agent session, then decide whether Flash v2.5 is enough or higher-quality voices are affordable.
+- With this budget, rehearsals and the Agent test can run freely, but still avoid leaving a mic stream open when idle.
