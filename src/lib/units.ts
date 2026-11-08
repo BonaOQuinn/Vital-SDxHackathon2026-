@@ -47,3 +47,17 @@ export function formatCm(cm: number): string {
 export function formatFtIn(ft: number, inches: number): string {
   return `${ft} ft ${inches} in`;
 }
+
+/** Temperature. Clinicians read °C (CLAUDE.md), so US patients' °F is converted in code. */
+export function fToC(f: number): number {
+  return ((f - 32) * 5) / 9;
+}
+
+export function cToF(c: number): number {
+  return (c * 9) / 5 + 32;
+}
+
+/** "37.0 °C". Always with the unit, one decimal. */
+export function formatC(c: number): string {
+  return `${c.toFixed(1)} °C`;
+}
