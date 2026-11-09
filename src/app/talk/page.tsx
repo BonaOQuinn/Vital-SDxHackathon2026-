@@ -226,6 +226,15 @@ export default function TalkPage() {
     };
   }, [start]);
 
+  // Full-bleed dark background while this screen is open; put the page color back on leave.
+  useEffect(() => {
+    const prev = document.body.style.background;
+    document.body.style.background = "var(--color-call)";
+    return () => {
+      document.body.style.background = prev;
+    };
+  }, []);
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [captions, interim]);
@@ -272,8 +281,6 @@ export default function TalkPage() {
 
   return (
     <main className="mx-auto flex h-dvh w-full max-w-[480px] flex-col bg-call text-white pt-[max(env(safe-area-inset-top),16px)] pb-[max(env(safe-area-inset-bottom),16px)]">
-      {/* full-bleed dark background on wide screens */}
-      <style>{`body{background:var(--color-call)}`}</style>
 
       <header className="px-5 text-center">
         <p className="inline-flex items-center gap-2 text-[15px] font-semibold text-call-muted">
