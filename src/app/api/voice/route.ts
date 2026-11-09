@@ -2,17 +2,17 @@ import { cloneVoice, deleteVoice, isVoiceId } from "@/lib/elevenlabs";
 
 export const maxDuration = 30;
 
-// POST multipart { speaker: "patient" | "clinician", audio: File (1+) } -> { voiceId }
-// Creates a temporary Instant Voice Clone from what the speaker just said.
+// POST multipart { speaker: "patient" | "clinician" | "doctor", audio: File (1-10) } -> { voiceId }
+// Creates a temporary Instant Voice Clone from what the speaker has said so far.
 export async function POST(req: Request) {
   const form = await req.formData().catch(() => null);
   const speaker = form?.get("speaker");
   const samples = (form?.getAll("audio") ?? []).filter((f): f is File => f instanceof Blob && f.size > 0);
-  if ((speaker !== "patient" && speaker !== "clinician") || samples.length === 0) {
+  if ((speaker !== "patient" && speaker !== "clinician" && speaker !== "doctor") || samples.length === 0) {
     return Response.json({ error: "speaker and audio are required" }, { status: 400 });
   }
   try {
-    const voiceId = await cloneVoice(`Vital ${speaker} ${new Date().toISOString().slice(0, 16)}`, samples.slice(0, 5));
+    const voiceId = await cloneVoice(`Vital ${speaker} ${new Date().toISOString().slice(0, 16)}`, samples.slice(0, 10));
     return Response.json({ voiceId });
   } catch (e) {
     console.error("/api/voice clone failed", e);

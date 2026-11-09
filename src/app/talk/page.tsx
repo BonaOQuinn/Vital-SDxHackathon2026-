@@ -54,6 +54,9 @@ function browserSay(text: string, lang: string): Promise<void> {
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+const voiceLabel = (s: "copying" | "ready" | "best" | "failed" | undefined) =>
+  s === "copying" ? "copying…" : s === "ready" ? "on ✓" : s === "best" ? "on ✓✓" : s === "failed" ? "couldn't copy" : "after first sentence";
+
 // ---------- page ----------
 
 export default function TalkPage() {
@@ -64,6 +67,8 @@ export default function TalkPage() {
   const [captions, setCaptions] = useState<Caption[]>([]);
   const [seconds, setSeconds] = useState(0);
   const [demo, setDemo] = useState(false);
+  const [ownVoices, setOwnVoices] = useState<"off" | "asking" | "on">("off");
+  const [voiceStatus, setVoiceStatus] = useState<Partial<Record<Speaker, "copying" | "ready" | "best" | "failed">>>({});
 
   const alive = useRef(true);
   const mutedRef = useRef(false);
@@ -80,16 +85,103 @@ export default function TalkPage() {
 
   // ---- speech out: ElevenLabs voice, browser voice as fallback ----
   const playRef = useRef<(audio: Blob) => Promise<void>>(async () => {});
-  const say = useCallback(async (text: string, code: "en" | "es") => {
+  const say = useCallback(async (text: string, code: "en" | "es", voiceId?: string) => {
     if (!text || !alive.current) return;
     try {
-      const res = await fetch("/api/tts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, lang: code }) });
+      const res = await fetch("/api/tts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, lang: code, voiceId }) });
       if (!res.ok) throw new Error(String(res.status));
       await playRef.current(await res.blob());
     } catch {
       await browserSay(text, LANG[code === "en" ? "patient" : "clinician"].stt);
     }
   }, []);
+
+  // ---- own voices (only when both people agree) ----
+  // Each person's translations are spoken in a copy of their voice (ElevenLabs Instant
+  // Voice Cloning). The copy is made from their first sentence so it works right away,
+  // then remade once ~20 s of their speech is collected, which sounds much closer.
+  // All copies are deleted from the ElevenLabs account when the conversation ends.
+  const ownVoicesRef = useRef(false);
+  const samplesRef = useRef<Record<Speaker, { blobs: Blob[]; secs: number }>>({ patient: { blobs: [], secs: 0 }, clinician: { blobs: [], secs: 0 } });
+  const voiceIdRef = useRef<Partial<Record<Speaker, string>>>({});
+  const cloningRef = useRef<Partial<Record<Speaker, Promise<string | null>>>>({});
+  const upgradedRef = useRef<Partial<Record<Speaker, boolean>>>({});
+  const allVoiceIds = useRef<string[]>([]);
+  /** Set when ElevenLabs refuses a copy (e.g. the API key lacks voices_write): stop retrying. */
+  const cloneFailedRef = useRef(false);
+
+  const deleteVoice = (id: string) => fetch(`/api/voice?id=${id}`, { method: "DELETE", keepalive: true }).catch(() => {});
+  const deleteAllVoices = useCallback(() => {
+    allVoiceIds.current.forEach(deleteVoice);
+    allVoiceIds.current = [];
+    voiceIdRef.current = {};
+    cloningRef.current = {};
+  }, []);
+
+  const cloneFrom = useCallback((speaker: Speaker, blobs: Blob[]) => {
+    const form = new FormData();
+    form.append("speaker", speaker);
+    blobs.slice(-10).forEach((b, i) => form.append("audio", b, `${speaker}-${i}.wav`));
+    const job = fetch("/api/voice", { method: "POST", body: form })
+      .then((r) => (r.ok ? (r.json() as Promise<{ voiceId: string }>) : Promise.reject(new Error(String(r.status)))))
+      .then(({ voiceId }) => {
+        allVoiceIds.current.push(voiceId);
+        const old = voiceIdRef.current[speaker];
+        voiceIdRef.current[speaker] = voiceId;
+        if (old) {
+          deleteVoice(old);
+          allVoiceIds.current = allVoiceIds.current.filter((v) => v !== old);
+        }
+        setVoiceStatus((v) => ({ ...v, [speaker]: upgradedRef.current[speaker] ? "best" : "ready" }));
+        return voiceId;
+      })
+      .catch(() => {
+        cloneFailedRef.current = true;
+        setVoiceStatus((v) => ({ ...v, [speaker]: "failed" }));
+        return null;
+      })
+      .finally(() => {
+        if (cloningRef.current[speaker] === job) delete cloningRef.current[speaker];
+      });
+    cloningRef.current[speaker] = job;
+  }, []);
+
+  /** Keep the speaker's sample and (re)clone when it helps. WAV is 16 kHz 16-bit mono: 32 000 bytes per second. */
+  const collectSample = useCallback(
+    (speaker: Speaker, audio: Blob) => {
+      if (!ownVoicesRef.current || cloneFailedRef.current) return;
+      const s = samplesRef.current[speaker];
+      s.blobs.push(audio);
+      s.secs += Math.max(0, audio.size - 44) / 32000;
+      if (cloningRef.current[speaker]) return;
+      if (!voiceIdRef.current[speaker]) {
+        setVoiceStatus((v) => ({ ...v, [speaker]: "copying" }));
+        cloneFrom(speaker, s.blobs);
+      } else if (!upgradedRef.current[speaker] && s.secs >= 20) {
+        upgradedRef.current[speaker] = true;
+        cloneFrom(speaker, s.blobs);
+      }
+    },
+    [cloneFrom],
+  );
+
+  /** The speaker's voice copy, waiting a few seconds for the first one if it is still being made. */
+  const voiceFor = useCallback(async (speaker: Speaker) => {
+    if (!ownVoicesRef.current) return undefined;
+    const ready = voiceIdRef.current[speaker];
+    if (ready) return ready;
+    const pending = cloningRef.current[speaker];
+    if (!pending) return undefined;
+    return (await Promise.race([pending, wait(8000).then(() => null)])) ?? undefined;
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("pagehide", deleteAllVoices);
+    return () => {
+      window.removeEventListener("pagehide", deleteAllVoices);
+      deleteAllVoices();
+    };
+  }, [deleteAllVoices]);
 
   // ---- one turn: translate, show, speak ----
   const runTurn = useCallback(async (speaker: Speaker, text: string) => {
@@ -123,10 +215,10 @@ export default function TalkPage() {
     setCaptions((c) => c.map((x) => (x.id === id ? { ...x, translation: turn.translation, alerts: turn.alerts } : x)));
     setPhase("speaking");
     const out = LANG[other(speaker)].code;
-    await say(turn.translation, out);
+    await say(turn.translation, out, await voiceFor(speaker));
     for (const a of turn.alerts) await say(speaker === "patient" ? a.message.es : a.message.en, out);
     return true;
-  }, [say]);
+  }, [say, voiceFor]);
 
   // ---- speech in: open mic -> Scribe (detects English or Spanish) -> translate -> speak ----
   const voice = useVoiceLoop({
@@ -149,6 +241,7 @@ export default function TalkPage() {
         // Scribe says which language it heard, so either person can talk at any time.
         const speaker: Speaker = lang === "es" ? "clinician" : lang === "en" ? "patient" : nextRef.current;
         setSpeaker(speaker);
+        if (lang === "en" || lang === "es") collectSample(speaker, audio);
         const ok = await runTurn(speaker, text.trim());
         if (ok && alive.current) setSpeaker(other(speaker));
       }
@@ -250,6 +343,7 @@ export default function TalkPage() {
   function end() {
     alive.current = false;
     voice.stop();
+    deleteAllVoices();
     if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
     router.push("/s/demo");
   }
@@ -282,6 +376,43 @@ export default function TalkPage() {
         >
           English ⇄ Español
         </button>
+        {!demo && (
+          <div className="mt-2 text-[13px]">
+            {ownVoices === "off" && (
+              <button type="button" onClick={() => setOwnVoices("asking")} className="rounded-full bg-call-control px-3.5 py-1.5 font-semibold text-call-ink">
+                Speak in our own voices
+              </button>
+            )}
+            {ownVoices === "asking" && (
+              <div className="mx-auto max-w-[340px] rounded-2xl bg-call-card px-4 py-3 text-left text-call-ink">
+                <p className="font-semibold">Copy both of your voices?</p>
+                <p className="mt-1 text-call-muted">
+                  Vital copies each person&apos;s voice from what they say, so the translation sounds like them. Both of you must agree. The copies are deleted when you end.
+                </p>
+                <div className="mt-2.5 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      ownVoicesRef.current = true;
+                      setOwnVoices("on");
+                    }}
+                    className="rounded-full bg-blue px-3.5 py-1.5 font-semibold text-white"
+                  >
+                    We both agree
+                  </button>
+                  <button type="button" onClick={() => setOwnVoices("off")} className="rounded-full bg-call-control px-3.5 py-1.5 font-semibold">
+                    Not now
+                  </button>
+                </div>
+              </div>
+            )}
+            {ownVoices === "on" && (
+              <p className="text-call-muted">
+                Own voices · you: {voiceLabel(voiceStatus.patient)} · doctor: {voiceLabel(voiceStatus.clinician)}
+              </p>
+            )}
+          </div>
+        )}
       </header>
 
       <section className="flex flex-col items-center pt-7 pb-5">

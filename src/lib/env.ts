@@ -12,6 +12,8 @@ export const env = {
   get claudeModel() { return process.env.CLAUDE_MODEL ?? "claude-opus-5-5"; },
   get sttModel() { return process.env.ELEVENLABS_STT_MODEL ?? "scribe_v2"; },
   get ttsModel() { return process.env.ELEVENLABS_TTS_MODEL ?? "eleven_flash_v2_5"; },
+  /** Model for cloned voices: best at keeping a speaker's voice across languages. */
+  get cloneTtsModel() { return process.env.ELEVENLABS_CLONE_TTS_MODEL ?? "eleven_multilingual_v2"; },
   // Defaults are ElevenLabs premade voices; run `npm run voices:design` to generate custom ones.
   get voiceEn() { return process.env.ELEVENLABS_VOICE_EN ?? "JBFqnCBsd6RMkjVDRZzb"; },
   get voiceEs() { return process.env.ELEVENLABS_VOICE_ES ?? "EXAVITQu4vr4xnSDxMaL"; },

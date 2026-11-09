@@ -79,15 +79,24 @@ export const isVoiceId = (v: unknown): v is string => typeof v === "string" && /
  * for the language.
  */
 export async function speak(text: string, lang: Lang, voiceId?: string): Promise<ArrayBuffer> {
+  // A cloned voice uses the multilingual model, which keeps the speaker's timbre
+  // best across languages, with similarity turned up. Stock voices use the fast model.
+  const body = voiceId
+    ? {
+        text,
+        model_id: env.cloneTtsModel,
+        voice_settings: { stability: 0.45, similarity_boost: 0.9, style: 0, use_speaker_boost: true },
+      }
+    : {
+        text,
+        model_id: env.ttsModel,
+        language_code: lang,
+        voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+      };
   const res = await fetch(`${API}/text-to-speech/${voiceId ?? voiceFor(lang)}?output_format=mp3_44100_128`, {
     method: "POST",
     headers: { "xi-api-key": env.elevenLabsKey, "Content-Type": "application/json", Accept: "audio/mpeg" },
-    body: JSON.stringify({
-      text,
-      model_id: env.ttsModel,
-      language_code: lang,
-      voice_settings: { stability: 0.5, similarity_boost: 0.75 },
-    }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new ElevenLabsError(`TTS failed: ${res.status} ${await res.text()}`, res.status);
   return res.arrayBuffer();
@@ -102,7 +111,7 @@ export async function cloneVoice(name: string, samples: Blob[]): Promise<string>
   form.append("name", name);
   form.append("description", "Temporary Vital session voice. Deleted when the session ends.");
   form.append("remove_background_noise", "true");
-  samples.forEach((b, i) => form.append("files", b, `sample-${i}`));
+  samples.forEach((b, i) => form.append("files", b, `sample-${i}.wav`));
   const res = await fetch(`${API}/voices/add`, { method: "POST", headers: { "xi-api-key": env.elevenLabsKey }, body: form });
   if (!res.ok) throw new ElevenLabsError(`Voice clone failed: ${res.status} ${await res.text()}`, res.status);
   const data = (await res.json()) as { voice_id: string };
