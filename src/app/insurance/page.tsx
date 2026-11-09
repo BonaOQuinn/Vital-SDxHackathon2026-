@@ -47,7 +47,7 @@ export default function InsurancePage() {
     saveProfile(insurerRecord);
     saveMeta(meta);
     saveApprovals({});
-    router.push("/intake");
+    router.push("/share"); // back to the profile to review it; no audio is recorded during setup
   }
 
   return (
