@@ -7,10 +7,12 @@
 // -> say it -> back to the patient. The mic is off while the phone is speaking
 // (half-duplex), so a shared phone never hears itself.
 //
-// Speech in/out uses the browser's built-in engines for now. The ElevenLabs
-// Scribe/Flash hooks can replace `listen` and `say` without touching the UI.
+// Speech in/out uses ElevenLabs: the open mic (useVoiceLoop) hands each finished
+// sentence to Scribe (/api/stt), which also detects English vs Spanish, so either
+// person can speak at any time. Translations are spoken with ElevenLabs voices
+// (/api/tts), falling back to the browser's voice if that fails.
 //
-// If the browser can't do speech recognition, or the URL has ?demo=1, it plays the
+// If the browser can't use the microphone, or the URL has ?demo=1, it plays the
 // sample conversation instead so the demo never stalls.
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -18,6 +20,7 @@ import { AlertIcon, EndCallIcon, MicIcon, MicOffIcon } from "@/components/icons"
 import { demoProfile, demoTurns, type Alert, type Speaker } from "@/data";
 import type { TurnResponse } from "@/lib/contract";
 import { loadProfile } from "@/lib/profile-store";
+import { useVoiceLoop } from "@/lib/use-voice-loop";
 
 type Phase = "starting" | "needs-tap" | "listening" | "translating" | "speaking" | "muted";
 type Caption = { id: number; speaker: Speaker; original: string; translation?: string; alerts: Alert[]; error?: string };
@@ -30,24 +33,8 @@ const other = (s: Speaker): Speaker => (s === "patient" ? "clinician" : "patient
 
 // ---------- browser speech helpers ----------
 
-type Recognition = {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  onresult: ((e: { resultIndex: number; results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }> }) => void) | null;
-  onerror: ((e: { error: string }) => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  abort: () => void;
-};
-
-function getRecognitionCtor(): (new () => Recognition) | null {
-  if (typeof window === "undefined") return null;
-  const w = window as unknown as { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition };
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
-}
-
-function say(text: string, lang: string): Promise<void> {
+/** Browser voice, used only when ElevenLabs text-to-speech fails. */
+function browserSay(text: string, lang: string): Promise<void> {
   return new Promise((resolve) => {
     if (typeof speechSynthesis === "undefined" || !text) return resolve();
     const u = new SpeechSynthesisUtterance(text);
@@ -78,7 +65,6 @@ export default function TalkPage() {
   const [seconds, setSeconds] = useState(0);
   const [demo, setDemo] = useState(false);
 
-  const recRef = useRef<Recognition | null>(null);
   const alive = useRef(true);
   const mutedRef = useRef(false);
   const nextRef = useRef<Speaker>("patient");
@@ -86,12 +72,24 @@ export default function TalkPage() {
   const sessionId = useRef<string>("");
   const idRef = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const listenRef = useRef<() => void>(() => {});
 
   const setSpeaker = (s: Speaker) => {
     nextRef.current = s;
     setNext(s);
   };
+
+  // ---- speech out: ElevenLabs voice, browser voice as fallback ----
+  const playRef = useRef<(audio: Blob) => Promise<void>>(async () => {});
+  const say = useCallback(async (text: string, code: "en" | "es") => {
+    if (!text || !alive.current) return;
+    try {
+      const res = await fetch("/api/tts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, lang: code }) });
+      if (!res.ok) throw new Error(String(res.status));
+      await playRef.current(await res.blob());
+    } catch {
+      await browserSay(text, LANG[code === "en" ? "patient" : "clinician"].stt);
+    }
+  }, []);
 
   // ---- one turn: translate, show, speak ----
   const runTurn = useCallback(async (speaker: Speaker, text: string) => {
@@ -124,59 +122,48 @@ export default function TalkPage() {
     historyRef.current.push({ speaker, original: text });
     setCaptions((c) => c.map((x) => (x.id === id ? { ...x, translation: turn.translation, alerts: turn.alerts } : x)));
     setPhase("speaking");
-    const outLang = LANG[other(speaker)].stt;
-    await say(turn.translation, outLang);
-    for (const a of turn.alerts) await say(speaker === "patient" ? a.message.es : a.message.en, outLang);
+    const out = LANG[other(speaker)].code;
+    await say(turn.translation, out);
+    for (const a of turn.alerts) await say(speaker === "patient" ? a.message.es : a.message.en, out);
     return true;
-  }, []);
+  }, [say]);
 
-  // ---- listen once in the current speaker's language ----
-  const listen = useCallback(() => {
-    const Ctor = getRecognitionCtor();
-    if (!Ctor || !alive.current || mutedRef.current) return;
-    const speaker = nextRef.current;
-    const rec = new Ctor();
-    recRef.current = rec;
-    rec.lang = LANG[speaker].stt;
-    rec.continuous = false;
-    rec.interimResults = true;
-    let finalText = "";
-    let blocked = false;
-    setInterim("");
-    setPhase("listening");
-
-    rec.onresult = (e) => {
-      let text = "";
-      for (let i = 0; i < e.results.length; i++) {
-        text += e.results[i][0].transcript;
-        if (e.results[i].isFinal) finalText = text;
-      }
-      setInterim(text);
-    };
-    rec.onerror = (e) => {
-      if (e.error === "not-allowed" || e.error === "service-not-allowed") blocked = true;
-    };
-    rec.onend = async () => {
-      if (recRef.current === rec) recRef.current = null;
+  // ---- speech in: open mic -> Scribe (detects English or Spanish) -> translate -> speak ----
+  const voice = useVoiceLoop({
+    onUtterance: async (audio) => {
       if (!alive.current || mutedRef.current) return;
-      if (blocked) return setPhase("needs-tap");
-      const text = finalText.trim();
       setInterim("");
-      if (!text) return listenRef.current(); // silence: keep listening, same person
-      const ok = await runTurn(speaker, text);
+      setPhase("translating");
+      let text = "";
+      let lang: string | null = null;
+      try {
+        const form = new FormData();
+        form.append("audio", audio, "utterance.wav");
+        const r = await fetch("/api/stt", { method: "POST", body: form });
+        if (r.ok) ({ text, lang } = (await r.json()) as { text: string; lang: string | null });
+      } catch {
+        /* treated as silence */
+      }
       if (!alive.current) return;
-      if (ok) setSpeaker(other(speaker)); // hand over to the other person
-      if (!mutedRef.current) listenRef.current();
-    };
-    try {
-      rec.start();
-    } catch {
-      setPhase("needs-tap");
-    }
-  }, [runTurn]);
+      if (text.replace(/[^\p{L}\p{N}]/gu, "").length > 1) {
+        // Scribe says which language it heard, so either person can talk at any time.
+        const speaker: Speaker = lang === "es" ? "clinician" : lang === "en" ? "patient" : nextRef.current;
+        setSpeaker(speaker);
+        const ok = await runTurn(speaker, text.trim());
+        if (ok && alive.current) setSpeaker(other(speaker));
+      }
+      if (alive.current && !mutedRef.current) setPhase("listening");
+    },
+  });
   useEffect(() => {
-    listenRef.current = listen;
-  }, [listen]);
+    playRef.current = voice.play;
+  }, [voice.play]);
+
+  const listen = useCallback(async () => {
+    if (!alive.current || mutedRef.current) return;
+    const ok = await voice.start();
+    if (alive.current) setPhase(ok ? "listening" : "needs-tap");
+  }, [voice]);
 
   // ---- sample conversation (no speech recognition, or ?demo=1) ----
   const playDemo = useCallback(async () => {
@@ -197,19 +184,19 @@ export default function TalkPage() {
       await wait(900);
       setCaptions((c) => c.map((x) => (x.id === id ? { ...x, translation: t.translation, alerts: t.alerts } : x)));
       setPhase("speaking");
-      await say(t.translation, LANG[other(t.speaker)].stt);
+      await say(t.translation, LANG[other(t.speaker)].code);
       await wait(500);
     }
     if (alive.current) setPhase("muted");
-  }, []);
+  }, [say]);
 
   const start = useCallback(() => {
     // Unlock audio on iOS: speech output must start inside a tap.
     if (typeof speechSynthesis !== "undefined") speechSynthesis.speak(new SpeechSynthesisUtterance(""));
-    const wantsDemo = new URLSearchParams(window.location.search).has("demo") || !getRecognitionCtor();
+    const wantsDemo = new URLSearchParams(window.location.search).has("demo") || !navigator.mediaDevices?.getUserMedia;
     setDemo(wantsDemo);
     if (wantsDemo) void playDemo();
-    else listen();
+    else void listen();
   }, [listen, playDemo]);
 
   useEffect(() => {
@@ -221,10 +208,11 @@ export default function TalkPage() {
       alive.current = false;
       clearTimeout(boot);
       clearInterval(t);
-      recRef.current?.abort();
       if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
     };
-  }, [start]);
+    // Boot once; the open mic is released by useVoiceLoop on unmount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -234,10 +222,10 @@ export default function TalkPage() {
     if (mutedRef.current) {
       mutedRef.current = false;
       if (demo) setPhase("listening");
-      else listen();
+      else void listen();
     } else {
       mutedRef.current = true;
-      recRef.current?.abort();
+      voice.stop();
       if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
       setInterim("");
       setPhase("muted");
@@ -246,14 +234,13 @@ export default function TalkPage() {
 
   function flipSpeaker() {
     if (demo) return;
+    // Language is detected automatically; this only changes who the status line expects next.
     setSpeaker(other(nextRef.current));
-    // Aborting with no text ends the current listen; onend restarts it in the new language.
-    if (phase === "listening") recRef.current?.abort();
   }
 
   function end() {
     alive.current = false;
-    recRef.current?.abort();
+    voice.stop();
     if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
     router.push("/s/demo");
   }
@@ -262,7 +249,7 @@ export default function TalkPage() {
   const status: Record<Phase, string> = {
     starting: "Starting…",
     "needs-tap": "Tap the circle to start",
-    listening: `Listening to ${who} · ${LANG[next].name}`,
+    listening: voice.state === "hearing" ? `Hearing ${who}…` : "Listening · English or Español",
     translating: "Translating…",
     speaking: next === "patient" ? "Speaking to the doctor in Spanish" : "Speaking to you in English",
     muted: "Paused",
@@ -320,6 +307,7 @@ export default function TalkPage() {
         <p className="mt-10 text-[17px] font-semibold text-call-ink" role="status" aria-live="polite">
           {status[phase]}
         </p>
+        {voice.error ? <p className="mx-6 mt-2 text-center text-[14px] leading-snug text-[#FFB4AE]">{voice.error}</p> : null}
       </section>
 
       <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-5">
@@ -350,6 +338,11 @@ export default function TalkPage() {
             ))}
           </div>
         ))}
+        {!interim && voice.state === "hearing" && phase === "listening" ? (
+          <div className="rounded-2xl bg-call-card-2 px-4 py-3.5 opacity-80">
+            <p className="text-[17px] text-call-muted">…</p>
+          </div>
+        ) : null}
         {interim ? (
           <div className={`rounded-2xl px-4 py-3.5 opacity-80 ${next === "patient" ? "bg-call-card-2" : "bg-call-card"}`}>
             <p className="text-[13px] font-semibold text-call-muted">{next === "patient" ? "You" : "Doctor"}</p>
