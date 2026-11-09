@@ -139,7 +139,7 @@ async function SummaryContent({ token }: { token: string }) {
           </span>
         </div>
       </header>
-      <main className="mx-auto max-w-[640px] px-5 pt-4 pb-32">
+      <main className="mx-auto min-h-dvh max-w-[640px] bg-bg px-5 pt-4 pb-32">
         <SummaryReports reports={reports} />
       </main>
     </ExpiryGate>
