@@ -61,3 +61,9 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Voice bars on the live translation screen */
+@keyframes vital-wave {
+  0%, 100% { transform: scaleY(0.35); }
+  50% { transform: scaleY(1); }
+}

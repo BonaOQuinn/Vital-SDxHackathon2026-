@@ -26,25 +26,26 @@ export default function EmergencyPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col bg-[#0e0f11] text-white">
-      <header className="sticky top-0 z-10 bg-[#0e0f11]/95 px-4 pt-[max(env(safe-area-inset-top),12px)] pb-3 backdrop-blur">
+    <main className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col bg-bg text-ink">
+      <header className="sticky top-0 z-10 border-b border-line bg-bg/95 px-5 pt-[max(env(safe-area-inset-top),12px)] pb-3 backdrop-blur-sm">
         <div className="flex items-center gap-2">
-          <Link href="/" aria-label="Back" className="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.06] active:bg-white/10">
+          <Link href="/" className="-ml-2 flex h-11 items-center gap-1 px-2 text-[17px] text-blue">
             <ChevronLeftIcon />
+            Back
           </Link>
-          <h1 className="text-[20px] font-bold">Emergency numbers</h1>
         </div>
-        <label className="mt-3 flex h-12 items-center gap-2 rounded-2xl bg-white/[0.08] px-4 focus-within:ring-2 focus-within:ring-[#8ab4f8]">
+        <h1 className="mt-1 text-[30px] font-bold leading-[1.12] tracking-[-0.01em]">Emergency numbers</h1>
+        <label className="mt-3 flex h-12 items-center gap-2 rounded-xl border border-line bg-surface px-4 focus-within:border-blue">
           <SearchIcon />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search country · Buscar país"
             aria-label="Search country"
-            className="min-w-0 flex-1 bg-transparent text-[17px] text-white placeholder:text-white/40 focus:outline-none"
+            className="min-w-0 flex-1 bg-transparent text-[17px] text-ink placeholder:text-ink-3 focus:outline-none"
           />
           {query && (
-            <button onClick={() => setQuery("")} aria-label="Clear search" className="text-[15px] text-white/50">
+            <button onClick={() => setQuery("")} aria-label="Clear search" className="min-h-11 px-1 text-[15px] font-semibold text-blue">
               Clear
             </button>
           )}
@@ -52,39 +53,39 @@ export default function EmergencyPage() {
       </header>
 
       {!query && suggested && (
-        <section className="px-4 pb-2">
-          <p className="px-1 pb-2 text-[13px] font-semibold uppercase tracking-[0.08em] text-white/50">Where you are</p>
-          <button onClick={() => choose(suggested)} className="flex w-full items-center gap-3 rounded-2xl bg-[#3b1d1d] p-4 text-left active:opacity-80">
+        <section className="px-5 pb-2 pt-4">
+          <p className="px-1 pb-2 text-[13px] font-semibold uppercase tracking-[0.04em] text-ink-3">Where you are</p>
+          <button onClick={() => choose(suggested)} className="flex w-full items-center gap-3 rounded-card border border-red/20 bg-red-soft p-4 text-left active:opacity-80">
             <span className="text-[30px] leading-none">{flag(suggested.code)}</span>
             <span className="min-w-0 flex-1">
               <span className="block text-[17px] font-semibold">{suggested.name}</span>
-              <span className="block text-[14px] text-white/60">Ambulance · Ambulancia</span>
+              <span className="block text-[14px] text-ink-2">Ambulance · Ambulancia</span>
             </span>
-            <span className="rounded-full bg-[#e5332a] px-4 py-2 text-[20px] font-bold tabular-nums">{suggested.medical}</span>
+            <span className="rounded-full bg-red px-4 py-2 text-[20px] font-bold tabular-nums text-white">{suggested.medical}</span>
           </button>
         </section>
       )}
 
-      <ul className="flex-1 px-4 pb-8" aria-label="Countries">
-        {!query && <li className="px-1 pt-4 pb-2 text-[13px] font-semibold uppercase tracking-[0.08em] text-white/50">All countries</li>}
+      <ul className="mx-5 mb-8 flex-1" aria-label="Countries">
+        {!query && <li className="px-1 pt-4 pb-2 text-[13px] font-semibold uppercase tracking-[0.04em] text-ink-3">All countries</li>}
         {results.map((e) => (
           <li key={e.code}>
-            <button onClick={() => choose(e)} className="flex w-full items-center gap-3 border-b border-white/[0.06] px-1 py-3.5 text-left active:bg-white/[0.04]">
+            <button onClick={() => choose(e)} className="flex w-full items-center gap-3 border-b border-line bg-surface px-4 py-3.5 text-left active:bg-blue-soft">
               <span className="text-[26px] leading-none">{flag(e.code)}</span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[17px]">{e.name}</span>
-                {e.nameEs !== e.name && <span className="block text-[13px] text-white/45">{e.nameEs}</span>}
+                {e.nameEs !== e.name && <span className="block text-[13px] text-ink-2">{e.nameEs}</span>}
               </span>
               <span className="text-right">
                 <span className="block text-[19px] font-semibold tabular-nums">{e.medical}</span>
-                {e.general && <span className="block text-[12px] text-white/45">Also {e.general}</span>}
+                {e.general && <span className="block text-[12px] text-ink-2">Also {e.general}</span>}
               </span>
             </button>
           </li>
         ))}
         {results.length === 0 && (
-          <li className="px-1 py-8 text-center text-[15px] text-white/60">
-            Not in the list. From a mobile phone, <b className="text-white">112</b> connects to emergency services in most countries.
+          <li className="px-1 py-8 text-center text-[15px] text-ink-2">
+            Not in the list. From a mobile phone, <b className="text-ink">112</b> connects to emergency services in most countries.
           </li>
         )}
       </ul>
@@ -97,26 +98,26 @@ export default function EmergencyPage() {
 function CallSheet({ entry, onClose }: { entry: EmergencyEntry; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/60" onClick={onClose} role="dialog" aria-modal="true" aria-label={`Call ${entry.name}`}>
-      <div className="w-full max-w-[480px] rounded-t-[28px] bg-[#1b1c1f] px-5 pt-3 pb-[max(env(safe-area-inset-bottom),20px)]" onClick={(e) => e.stopPropagation()}>
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/20" />
+      <div className="w-full max-w-[480px] rounded-t-[20px] bg-bg px-5 pt-3 pb-[max(env(safe-area-inset-bottom),20px)]" onClick={(e) => e.stopPropagation()}>
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-line" />
         <div className="flex items-center gap-3">
           <span className="text-[40px] leading-none">{flag(entry.code)}</span>
           <div>
             <p className="text-[22px] font-bold">{entry.name}</p>
-            <p className="text-[15px] text-white/60">Ambulance · Ambulancia{entry.general ? ` · Also ${entry.general}` : ""}</p>
+            <p className="text-[15px] text-ink-2">Ambulance · Ambulancia{entry.general ? ` · Also ${entry.general}` : ""}</p>
           </div>
         </div>
 
-        <a href={`tel:${entry.medical}`} className="mt-5 flex h-16 items-center justify-center gap-2 rounded-2xl bg-[#e5332a] text-[22px] font-bold active:opacity-85">
+        <a href={`tel:${entry.medical}`} className="mt-5 flex h-16 items-center justify-center gap-2 rounded-[14px] bg-red text-[22px] font-bold text-white active:opacity-85">
           <PhoneIcon /> Call {entry.medical}
         </a>
-        <Link href="/conversation?call=1" className="mt-3 flex h-14 items-center justify-center rounded-2xl bg-white/[0.08] text-[17px] font-semibold active:bg-white/[0.12]">
+        <Link href="/conversation?call=1" className="mt-3 flex h-14 items-center justify-center rounded-[14px] border border-line bg-surface text-[17px] font-semibold text-blue active:bg-blue-soft">
           Open the translator for this call
         </Link>
-        <p className="mt-3 text-[13px] leading-snug text-white/55">
+        <p className="mt-3 text-[14px] leading-snug text-ink-2">
           Put the call on speaker, then open the translator. Vital listens to both of you and says each side in the other language.
         </p>
-        <button onClick={onClose} className="mt-3 h-11 w-full text-[15px] text-white/60">
+        <button onClick={onClose} className="mt-3 h-11 w-full text-[17px] font-semibold text-blue">
           Cancel
         </button>
       </div>
@@ -126,7 +127,7 @@ function CallSheet({ entry, onClose }: { entry: EmergencyEntry; onClose: () => v
 
 function SearchIcon() {
   return (
-    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" className="shrink-0 text-white/50" aria-hidden="true">
+    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" className="shrink-0 text-ink-3" aria-hidden="true">
       <circle cx="11" cy="11" r="7" />
       <path d="m20 20-3.5-3.5" />
     </svg>

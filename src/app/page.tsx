@@ -2,7 +2,7 @@
 
 // Home: one big "Tap to talk" button, the medical profile, and emergency services.
 // Matches the original mockup (mockups/app-screens.html, screen 1).
-// Tap to talk opens the live translator (/conversation); the emergency link opens
+// Tap to talk opens the live translator (/talk); the emergency link opens
 // the number directory (/emergency); the profile opens /share.
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -49,7 +49,7 @@ export default function Home() {
 
       <section className="flex flex-1 flex-col items-center justify-center text-center">
         <Link
-          href={accepted ? "/conversation" : "/welcome"}
+          href={accepted ? "/talk" : "/welcome"}
           aria-label="Start translating"
           className="relative grid size-[216px] place-items-center rounded-full"
         >

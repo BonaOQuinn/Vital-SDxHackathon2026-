@@ -89,3 +89,20 @@ export function ChevronLeftIcon({ size = 20, className }: IconProps) {
     </svg>
   );
 }
+
+export function MicOffIcon({ size = 24, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className={className} aria-hidden="true">
+      <rect x="7.5" y="2.5" width="7" height="11" rx="3.5" />
+      <path d="M4 10.5a7 7 0 0 0 14 0M11 17.5v2.5M3 3l16 16" />
+    </svg>
+  );
+}
+
+export function EndCallIcon({ size = 24, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M12 9c-2.6 0-5.1.5-7.3 1.5-.7.3-1.1 1-1.1 1.7v2.3c0 .6.5 1.1 1.1 1.1l3-.4c.5-.1.9-.5 1-1l.3-1.8c1.9-.6 4.1-.6 6 0l.3 1.8c.1.5.5.9 1 1l3 .4c.6 0 1.1-.5 1.1-1.1v-2.3c0-.7-.4-1.4-1.1-1.7C17.1 9.5 14.6 9 12 9z" />
+    </svg>
+  );
+}
