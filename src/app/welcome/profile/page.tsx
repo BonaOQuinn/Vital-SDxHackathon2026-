@@ -84,12 +84,12 @@ export default function ProfileSetupPage() {
       ...(prefill?.additionalNotes ? { additionalNotes: prefill.additionalNotes } : {}),
     };
     saveProfile(profile);
-    router.push("/intake"); // guided flow: profile -> what happened -> care -> translation
+    router.push("/"); // onboarding ends at Home; no audio is recorded during setup
   }
 
   function chooseDemo() {
     saveProfile(demoProfile);
-    router.push("/intake"); // guided flow: profile -> what happened -> care -> translation
+    router.push("/"); // onboarding ends at Home; no audio is recorded during setup
   }
 
   const { title, sub } = pages[page];
